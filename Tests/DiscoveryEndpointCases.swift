@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // NetService fixtures exercise both production parsers without browsing the LAN.
 final class DiscoveryFixture: NetService {
     var fixtureAddresses: [Data] = []

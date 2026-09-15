@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an improvement or new capability.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation, not just the solution you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      multiple: true
+      options:
+        - Mac app (host)
+        - Mac app (viewer)
+        - iPhone/iPad app
+        - Command-line tool (pocketctrl)
+        - MCP server / agent skill
+        - Protocol or pairing
+        - Documentation
+  - type: textarea
+    id: security
+    attributes:
+      label: Security or privacy considerations
+      description: Does this touch pairing, trust, permissions, ports, or what leaves the device? Say so here.

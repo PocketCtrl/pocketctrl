@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 @MainActor
 func runSpeechTests() async throws {
     func settle() async { for _ in 0..<8 { await Task.yield() } }

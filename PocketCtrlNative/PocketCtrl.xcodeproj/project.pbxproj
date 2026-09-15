@@ -6,20 +6,25 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		78F1B88E759405703FB9068E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 43B1FF1F48685B7F62E47917 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		059AB32C2FCCC5C400F35232 /* PocketCtrl.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PocketCtrl.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B1C00012FCD010000000001 /* PocketCtrl.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PocketCtrl.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B1C02002FCD200000000200 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */ = {
+		7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 059AB32B2FCCC5C400F35232 /* PocketCtrl */;
 		};
-		7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */ = {
+		7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -32,7 +37,7 @@
 		059AB32E2FCCC5C400F35232 /* PocketCtrl */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */,
+				7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = PocketCtrl;
 			sourceTree = "<group>";
@@ -40,7 +45,7 @@
 		7B1C00022FCD010000000002 /* PocketCtrlMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */,
+				7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = PocketCtrlMobile;
 			sourceTree = "<group>";
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78F1B88E759405703FB9068E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +77,7 @@
 				059AB32E2FCCC5C400F35232 /* PocketCtrl */,
 				7B1C00022FCD010000000002 /* PocketCtrlMobile */,
 				059AB32D2FCCC5C400F35232 /* Products */,
+				7B1C02012FCD200000000201 /* Config */,
 			);
 			sourceTree = "<group>";
 		};
@@ -81,6 +88,14 @@
 				7B1C00012FCD010000000001 /* PocketCtrl.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7B1C02012FCD200000000201 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				7B1C02002FCD200000000200 /* Signing.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -103,6 +118,7 @@
 			);
 			name = PocketCtrl;
 			packageProductDependencies = (
+				43B1FF1F48685B7F62E47917 /* Sparkle */,
 			);
 			productName = PocketCtrl;
 			productReference = 059AB32C2FCCC5C400F35232 /* PocketCtrl.app */;
@@ -157,6 +173,9 @@
 			);
 			mainGroup = 059AB3232FCCC5C400F35232;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D38D87D35C7F2E38409B456E /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 059AB32D2FCCC5C400F35232 /* Products */;
 			projectDirPath = "";
@@ -323,12 +342,12 @@
 		};
 		059AB3382FCCC5C600F35232 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7B1C02002FCD200000000200 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PS3A7X5HHS;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -342,7 +361,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -356,12 +375,12 @@
 		};
 		059AB3392FCCC5C600F35232 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7B1C02002FCD200000000200 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PS3A7X5HHS;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -375,7 +394,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -389,12 +408,12 @@
 		};
 		7B1C00092FCD010000000009 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7B1C02002FCD200000000200 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = PS3A7X5HHS;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PocketCtrlMobile/Info.plist;
@@ -405,7 +424,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mobile;
 				PRODUCT_MODULE_NAME = PocketCtrlMobile;
 				PRODUCT_NAME = PocketCtrl;
@@ -425,12 +444,12 @@
 		};
 		7B1C000A2FCD01000000000A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7B1C02002FCD200000000200 /* Signing.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = PS3A7X5HHS;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PocketCtrlMobile/Info.plist;
@@ -441,7 +460,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mobile;
 				PRODUCT_MODULE_NAME = PocketCtrlMobile;
 				PRODUCT_NAME = PocketCtrl;
@@ -491,6 +510,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D38D87D35C7F2E38409B456E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		43B1FF1F48685B7F62E47917 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D38D87D35C7F2E38409B456E /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 059AB3242FCCC5C400F35232 /* Project object */;
 }

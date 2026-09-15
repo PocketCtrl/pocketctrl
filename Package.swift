@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "PocketCtrl",
     platforms: [
-        .macOS(.v13)
+        .macOS("15.6")
     ],
     products: [
         .executable(name: "pocketctrl", targets: ["PocketCtrlHostCLI"])

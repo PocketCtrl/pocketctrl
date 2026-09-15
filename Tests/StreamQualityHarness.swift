@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // State-only harness; script/test_stream_quality.sh inserts the production
 // host adaptation methods here, without starting capture or accessing TCC.
 enum StreamVideoCodec { case h264, hevc }

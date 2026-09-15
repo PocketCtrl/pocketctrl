@@ -62,6 +62,11 @@ struct ClientContentView: View {
     @State private var infoMacID: String?
     @State private var isShowingConnectionInfo = false
     @State private var isShowingConnectionHelp = false
+    /// Set once a connection or pairing attempt has run for a while without success,
+    /// so the connecting screen can offer help instead of a bare spinner.
+    @State private var connectingHasBeenSlow = false
+    @State private var isShowingConnectingHelp = false
+    private static let slowConnectionHelpDelay: Duration = .seconds(20)
     @State private var isTailscaleAppInstalled = false
     @State private var isShowingViewerHelp = false
     @State private var viewerHelpStep = 0
@@ -807,7 +812,7 @@ struct ClientContentView: View {
                             .multilineTextAlignment(.center)
                         Text(model.localNetworkAccessDenied
                              ? "iOS is blocking PocketCtrl from reaching devices on your Wi-Fi. Open Settings, choose PocketCtrl, turn on Local Network, then try again."
-                             : "Connect both devices to the same local network. Make sure your Mac is hosting with Nearby Wi-Fi Discovery on, and allow PocketCtrl's Local Network access in Settings on both devices.")
+                             : "Your iPhone and Mac must be on the same Wi-Fi network. Make sure your Mac is hosting with Nearby Wi-Fi Discovery on, and allow PocketCtrl's Local Network access in Settings on both devices. Away from home, use Tailscale on both devices instead.")
                             .font(.callout)
                             .foregroundStyle(.white.opacity(0.68))
                             .multilineTextAlignment(.center)
@@ -823,6 +828,10 @@ struct ClientContentView: View {
                             }
                         }
                         .buttonStyle(ConnectSecondaryButtonStyle())
+                        ConnectionHelpLink(
+                            title: model.localNetworkAccessDenied ? "View the connection guide" : "Set up Tailscale for remote access",
+                            url: model.localNetworkAccessDenied ? ClientHelpLinks.installGuide : ClientHelpLinks.tailscaleGuide
+                        )
                     } else {
                         ProgressView()
                             .controlSize(.small)
@@ -840,6 +849,17 @@ struct ClientContentView: View {
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: 420)
 
+                        if model.isConnectingOverLocalWiFi, !model.isPairingRequestInProgress {
+                            Text(ClientHelpLinks.sameNetworkHint)
+                                .font(.footnote)
+                                .foregroundStyle(.white.opacity(0.58))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 380)
+                            ConnectionHelpLink(title: "Set up Tailscale for remote access", url: ClientHelpLinks.tailscaleGuide)
+                        } else if model.isPairingRequestInProgress {
+                            ConnectionHelpLink(title: "View the connection guide", url: ClientHelpLinks.installGuide)
+                        }
+
                         if model.localNetworkAccessDenied, !model.isPairingRequestInProgress, model.isAttemptingLocalRoute {
                             // Surface the denial immediately instead of after the timeout.
                             Label("Local Network access is off for PocketCtrl", systemImage: "lock.slash")
@@ -853,6 +873,14 @@ struct ClientContentView: View {
                             }
                             .buttonStyle(ConnectSecondaryButtonStyle())
                         }
+                    }
+
+                    if connectingHasBeenSlow, !model.isWaitingForTailscaleVPN, !model.localWiFiSearchFailed {
+                        SlowConnectionAssist(
+                            isWaitingForApproval: model.isPairingRequestInProgress,
+                            onShowHelp: { isShowingConnectingHelp = true }
+                        )
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
 
                     Button {
@@ -904,6 +932,18 @@ struct ClientContentView: View {
                 .frame(maxWidth: .infinity, minHeight: proxy.size.height)
             }
             .scrollBounceBehavior(.basedOnSize)
+        }
+        .animation(.snappy(duration: 0.24), value: connectingHasBeenSlow)
+        .task {
+            // Runs while the connecting screen is visible and is cancelled when it goes away.
+            connectingHasBeenSlow = false
+            do { try await Task.sleep(for: Self.slowConnectionHelpDelay) } catch { return }
+            connectingHasBeenSlow = true
+        }
+        .sheet(isPresented: $isShowingConnectingHelp) {
+            MacConnectionHelpSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -1364,6 +1404,75 @@ private struct ConnectionDetailLine: View {
     }
 }
 
+/// Shown after a connection or pairing attempt has run for a while. Tells the user
+/// what is probably happening and gives them a way to get help without giving up.
+private struct SlowConnectionAssist: View {
+    let isWaitingForApproval: Bool
+    let onShowHelp: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Label(
+                isWaitingForApproval ? "Still waiting for the Mac to approve" : "Taking longer than usual",
+                systemImage: isWaitingForApproval ? "person.badge.clock" : "clock.badge.questionmark"
+            )
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.92))
+
+            Text(isWaitingForApproval
+                 ? "On the Mac, look for the New Device Request window and choose Authenticate and Approve. If the request expires, start pairing again."
+                 : "Make sure the Mac is awake and hosting, and that both devices are on the same Wi-Fi network or both have Tailscale turned on.")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.68))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                Button(action: onShowHelp) {
+                    Label("Need help?", systemImage: "questionmark.circle")
+                        .font(.callout.weight(.semibold))
+                }
+                .buttonStyle(ConnectSecondaryButtonStyle())
+
+                ConnectionHelpLink(
+                    title: "Online guide",
+                    url: isWaitingForApproval ? ClientHelpLinks.approvalHelp : ClientHelpLinks.connectionHelp
+                )
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .frame(maxWidth: 420)
+        .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+    }
+}
+
+/// Small inline link to a pocketctrl.com guide, used wherever a connection state
+/// needs a "what do I do now" path (Tailscale off, local Wi-Fi not reachable).
+struct ConnectionHelpLink: View {
+    let title: String
+    let url: URL
+
+    var body: some View {
+        Link(destination: url) {
+            HStack(spacing: 5) {
+                Text(title)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.85))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.white.opacity(0.10), in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens the guide on pocketctrl.com")
+    }
+}
+
 private struct TailscaleConnectionAssist: View {
     let isTailscaleInstalled: Bool
     let action: () -> Void
@@ -1412,6 +1521,8 @@ private struct TailscaleConnectionAssist: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.82)
+
+            ConnectionHelpLink(title: "View the Tailscale setup guide", url: ClientHelpLinks.tailscaleGuide)
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 20)
@@ -1506,7 +1617,7 @@ private struct MacConnectionHelpSheet: View {
             number: 1,
             text: "Install and open PocketCtrl on your Mac.",
             guideTitle: "View the Mac installation guide",
-            guideURL: URL(string: "https://pocketctrl.com/tutorials/install-pocketctrl")
+            guideURL: ClientHelpLinks.installGuide
         ),
         ConnectionHelpStep(
             number: 2,
@@ -1518,13 +1629,27 @@ private struct MacConnectionHelpSheet: View {
         ),
         ConnectionHelpStep(
             number: 4,
-            text: "Check the iPhone name and requested controls on the Mac, then approve. Turn on Allow future unattended access only if you want reconnection after hosting or the Mac app restarts."
+            text: "A New Device Request window appears on the Mac. Check the iPhone name and requested controls, then choose Authenticate and Approve. If the request expires, start pairing again. Turn on Allow future unattended access only if you want reconnection after hosting or the Mac app restarts.",
+            guideTitle: "The approval request is not appearing",
+            guideURL: ClientHelpLinks.approvalHelp
         ),
         ConnectionHelpStep(
             number: 5,
+            text: "Your iPhone and Mac must be on the same Wi-Fi network, or both must have Tailscale turned on. Guest networks, hotel Wi-Fi, and cellular data are not the same network as your Mac.",
+            guideTitle: "Are my devices on the same network?",
+            guideURL: ClientHelpLinks.sameNetworkHelp
+        ),
+        ConnectionHelpStep(
+            number: 6,
             text: "Tailscale is optional on the same Wi-Fi. For remote access, install it on both devices and join the same tailnet.",
-            guideTitle: "View the Tailscale setup guide",
-            guideURL: URL(string: "https://pocketctrl.com/tutorials/setup-tailscale")
+            guideTitle: "Tailscale setup and troubleshooting",
+            guideURL: ClientHelpLinks.tailscaleGuide
+        ),
+        ConnectionHelpStep(
+            number: 7,
+            text: "Still stuck? The online help center explains every message PocketCtrl can show and what to do about it.",
+            guideTitle: "Fix connection problems",
+            guideURL: ClientHelpLinks.connectionHelp
         )
     ]
 
@@ -4153,6 +4278,11 @@ struct PairingCodeScannerSheet: View {
                         Text("Trying local Wi-Fi and Tailscale. You'll approve the request on your Mac.")
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.62))
+                            .multilineTextAlignment(.center)
+
+                        Text("Use the same Wi-Fi network as your Mac, or turn on Tailscale on both devices.")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.5))
                             .multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 24)

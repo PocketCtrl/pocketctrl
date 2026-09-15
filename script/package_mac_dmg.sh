@@ -42,7 +42,9 @@ hdiutil convert "$WORK/layout.dmg" -format UDZO -imagekey zlib-level=9 -o "$WORK
 codesign --force --sign "$IDENTITY" --timestamp "$WORK/$NAME"
 codesign --verify --strict --verbose=2 "$WORK/$NAME"
 echo "Submitting the signed installer disk image to Apple's notary service."
-xcrun notarytool submit "$WORK/$NAME" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun notarytool submit "$WORK/$NAME" --keychain-profile "$NOTARY_PROFILE" --wait --output-format json > "$WORK/notarization.json"
+/usr/bin/plutil -p "$WORK/notarization.json"
+[[ "$(/usr/bin/plutil -extract status raw -o - "$WORK/notarization.json")" == Accepted ]] || fail "Apple rejected the DMG; inspect the submission ID in $WORK/notarization.json."
 xcrun stapler staple "$WORK/$NAME"
 xcrun stapler validate "$WORK/$NAME"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$WORK/$NAME"

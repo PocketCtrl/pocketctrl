@@ -1,5 +1,9 @@
 # PocketCtrl: Mac website release
 
+For updater-enabled builds, also follow [Mac in-app updates](mac-updates.md).
+Every new Latest GitHub release must include the signed-update `appcast.xml`
+generated from its final notarized DMG, as well as the download and checksum.
+
 The full native Mac app (host, viewer, login item, CLI, agent skill installer) is distributed
 directly from the website. The iOS app can be released independently on the App Store.
 Keep both targets in Xcode. Leave the macOS App Store Connect version in Prepare for Submission;
@@ -70,8 +74,10 @@ This still signs and notarizes the new DMG container. Keep existing ZIP assets a
 for compatibility; only change the website URL/checksum after uploading and testing the DMG.
 
 The scripts use the full Xcode at `/Applications/Xcode.app` without changing `xcode-select` globally.
-Set `DEVELOPER_DIR` if Xcode is elsewhere. The existing project's team is the default; `TEAM_ID` and
-`SIGN_IDENTITY` can select another authorized signing identity when intentionally needed.
+Set `DEVELOPER_DIR` if Xcode is elsewhere. The public project does not store an Apple Developer team:
+`archive` reads `TEAM_ID` from the environment or `DEVELOPMENT_TEAM` from the untracked
+`PocketCtrlNative/Config/Local.xcconfig` (copy `Local.xcconfig.example`). `SIGN_IDENTITY` can select
+another authorized signing identity when intentionally needed.
 No automatic provisioning changes are made. The archive uses `distribution/macos/Website.xcconfig`
 and `Website.entitlements`, leaving the normal Mac Debug build and iOS target untouched.
 
@@ -115,8 +121,9 @@ Do not delete your development data to test: use a separate macOS account or spa
 4. In iOS App Review notes, point reviewers to the public Mac download and pairing/setup guide.
    Do not tell them to get the Mac host from the Mac App Store.
 
-Updates are manual in this first release. Help and Settings offer Downloads and Updates, which opens
-the stable website page. No automatic updater, payment service, or third-party SDK was added.
+Version 1.0 requires a manual upgrade. Updater-enabled versions use Sparkle for
+user-initiated installation and relaunch; follow [Mac in-app updates](mac-updates.md)
+to generate and publish their signed update feed. No payment service is included.
 
 ## References
 

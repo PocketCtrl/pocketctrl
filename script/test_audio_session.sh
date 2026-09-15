@@ -1,4 +1,5 @@
 #!/bin/zsh
+# SPDX-License-Identifier: MPL-2.0
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"

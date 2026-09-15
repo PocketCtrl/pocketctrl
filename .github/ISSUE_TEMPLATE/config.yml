@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/PocketCtrl/pocketctrl/security/advisories/new
+    about: Please do not file vulnerabilities as public issues. Use GitHub's private vulnerability reporting instead. See SECURITY.md.
+  - name: Setup and pairing help
+    url: https://pocketctrl.com/tutorials/install-pocketctrl
+    about: Installation, pairing, and Tailscale guides on the PocketCtrl website.

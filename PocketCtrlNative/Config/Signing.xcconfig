@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// Shared signing configuration for the PocketCtrl and PocketCtrlMobile targets.
+// The development team is deliberately not set here so the public project has
+// no hard-coded Apple Developer team. Each developer supplies their own team in
+// an untracked Local.xcconfig next to this file (copy Local.xcconfig.example).
+// CI builds with CODE_SIGNING_ALLOWED=NO and needs no team.
+
+#include? "Local.xcconfig"

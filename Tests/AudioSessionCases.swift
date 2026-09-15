@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 let coordinator = ClientAudioSession.shared
 let system = AVAudioSession.sharedInstance()
 let viewer = UUID()

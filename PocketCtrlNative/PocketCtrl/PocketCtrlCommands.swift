@@ -78,7 +78,7 @@ struct PocketCtrlCommands: Commands {
 
         CommandGroup(replacing: .help) {
             Button("PocketCtrl Help") {
-                openURL("https://pocketctrl.com/tutorials/install-pocketctrl")
+                NSWorkspace.shared.open(MacHelpLinks.installGuide)
             }
 
             Button("View Source Code") {

@@ -324,6 +324,8 @@ final class RemoteDesktopModel: ObservableObject {
     private static let selectedViewerSavedComputerIDKey = "PocketCtrl.selectedViewerSavedComputerID"
     private static let viewerSavedComputerCredentialPrefix = "PocketCtrl.viewerSavedComputerCredential.v1."
     private static let manualPairingCodeLifetime: TimeInterval = 2 * 60
+    /// How long a pairing request waits for the Mac owner to approve or deny it.
+    static let manualPairingApprovalWindow: TimeInterval = 3 * 60
     private static let viewerRouteStabilityInterval: TimeInterval = 5
 
     init() {
@@ -1714,8 +1716,10 @@ final class RemoteDesktopModel: ObservableObject {
         pendingManualPairingRequest = request
         manualPairingApprovalCompletions[request.id] = completion
 
+        // Give the Mac owner time to notice the request, read it, and authenticate.
+        // The requesting device waits slightly longer than this before giving up.
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(60))
+            try? await Task.sleep(for: .seconds(Self.manualPairingApprovalWindow))
             await MainActor.run {
                 guard self?.pendingManualPairingRequest?.id == request.id else { return }
                 self?.denyManualPairingRequest(reason: .timedOut)

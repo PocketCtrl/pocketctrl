@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in PocketCtrl does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not include pairing codes, QR images, control tokens, device credentials, Tailscale IPs, or captured screen content.** Suspected security vulnerabilities belong in [private vulnerability reporting](https://github.com/PocketCtrl/pocketctrl/security/advisories/new), not here.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Mac app (host)
+        - Mac app (viewer)
+        - iPhone/iPad app
+        - Command-line tool (pocketctrl)
+        - MCP server / agent skill
+        - Build, CI, or release scripts
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Mac app and start hosting
+        2. On the iPhone, ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: PocketCtrl versions
+      description: Mac app version and build, iOS app version, or commit hash if built from source.
+      placeholder: "Mac 1.0 (1), iOS 1.0 (2)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: macOS and iOS versions
+      placeholder: "macOS 15.6 on Apple silicon, iOS 18.6 on iPhone 15"
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network route
+      options:
+        - Same Wi-Fi (local)
+        - Tailscale
+        - Both / unsure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Redact anything private before attaching. Console output from the Mac app or `pocketctrl status` output is helpful.

@@ -4,11 +4,12 @@ import SwiftUI
 
 struct PocketCtrlSettingsView: View {
     @ObservedObject var model: RemoteDesktopModel
+    @ObservedObject var updater: PocketCtrlUpdater
     @AppStorage("PocketCtrl.selectedSettingsPane") private var selectedPane = SettingsPane.general.rawValue
 
     var body: some View {
         TabView(selection: $selectedPane) {
-            PocketCtrlGeneralSettingsPane(model: model)
+            PocketCtrlGeneralSettingsPane(model: model, updater: updater)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
@@ -32,6 +33,7 @@ private enum SettingsPane: String {
 
 private struct PocketCtrlGeneralSettingsPane: View {
     @ObservedObject var model: RemoteDesktopModel
+    @ObservedObject var updater: PocketCtrlUpdater
 
     var body: some View {
         ZStack {
@@ -85,6 +87,21 @@ private struct PocketCtrlGeneralSettingsPane: View {
                     }
 
                     MacSettingsSection(title: "About", systemImage: "info.circle") {
+                        HStack {
+                            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
+                            Spacer()
+                            PocketCtrlUpdateButton(updater: updater)
+                        }
+                        #if DEBUG
+                        Text("Updates are available in the installed release app, not Xcode builds.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        #else
+                        Text("Install and relaunch when ready. Active connections will disconnect.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        #endif
+                        settingsDivider
                         Link("Privacy Policy", destination: MacLegalLinks.privacyPolicy)
                         settingsDivider
                         Link("Downloads and Updates", destination: MacLegalLinks.downloads)

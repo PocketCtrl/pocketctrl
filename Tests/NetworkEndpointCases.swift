@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Real sockets on loopback, not mocked transport. Bound ports are ephemeral.
 DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
     fatalError("Network regression test timed out waiting for a datagram")

@@ -12,11 +12,21 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Test persistent host identity
         run: zsh script/test_host_identity.sh
       - name: Test stream quality controls and host limits
         run: zsh script/test_stream_quality.sh
+      - name: Test network endpoint parsing and discovery
+        run: zsh script/test_network_endpoints.sh
+      - name: Test audio session lifecycle
+        run: zsh script/test_audio_session.sh
+      - name: Test speech input lifecycle
+        run: zsh script/test_speech_input.sh
+      - name: Test Mac pointer mapping
+        run: zsh script/test_mac_pointer.sh
+      - name: Test Mac release metadata checks
+        run: bash script/test_mac_release.sh
       - name: Build control utility
         run: swift build --product pocketctrl
       - name: Build macOS app

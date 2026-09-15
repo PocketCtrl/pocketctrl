@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Run only against disposable defaults suites, never the real app's preferences.
 func checkIdentity(_ condition: @autoclosure () -> Bool, _ message: String) {
     precondition(condition(), message)

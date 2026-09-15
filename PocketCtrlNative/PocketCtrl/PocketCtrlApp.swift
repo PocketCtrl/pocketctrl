@@ -13,6 +13,7 @@ import SwiftUI
 @main
 struct PocketCtrlApp: App {
     @StateObject private var model = RemoteDesktopModel()
+    @StateObject private var updater = PocketCtrlUpdater()
     private let hostControlServer = PocketCtrlHostControlServer()
 
     init() {
@@ -29,10 +30,13 @@ struct PocketCtrlApp: App {
         }
         .commands {
             PocketCtrlCommands(model: model)
+            CommandGroup(after: .appInfo) {
+                PocketCtrlUpdateButton(updater: updater)
+            }
         }
 
         Settings {
-            PocketCtrlSettingsView(model: model)
+            PocketCtrlSettingsView(model: model, updater: updater)
         }
         .windowResizability(.contentSize)
 

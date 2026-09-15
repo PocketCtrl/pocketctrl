@@ -94,6 +94,7 @@ enum MobileManualPairingTransport {
 
 private final class MobileManualPairingWireClient: @unchecked Sendable {
     private static let maximumPayloadBytes: UInt32 = 64 * 1024
+    static let responseDeadline: TimeInterval = 190
     private let connection: NWConnection
     private let queue = DispatchQueue(label: "pocketctrl.mobile.manual.pairing.client.\(UUID().uuidString)")
     private var completion: ((Result<Data, Error>) -> Void)?
@@ -142,7 +143,9 @@ private final class MobileManualPairingWireClient: @unchecked Sendable {
                 }
             }
             self.connection.start(queue: self.queue)
-            self.queue.asyncAfter(deadline: .now() + 70) { [weak self] in
+            // The Mac holds an approval request for three minutes. Wait a little longer than
+            // that so the Mac's own "did not approve in time" reason reaches the user first.
+            self.queue.asyncAfter(deadline: .now() + Self.responseDeadline) { [weak self] in
                 self?.finish(.failure(MobileManualPairingClientError(message: "The Mac did not respond to the pairing request.")))
             }
         }

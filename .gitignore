@@ -95,6 +95,8 @@ secrets*.yaml
 secrets*.yml
 cli-control-token
 cli-control-token.*
+# Per-developer Apple team for Xcode signing (copy Local.xcconfig.example)
+PocketCtrlNative/Config/Local.xcconfig
 
 # IDE and local tooling state
 .idea/

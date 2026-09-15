@@ -8,10 +8,13 @@ repo="${script_dir:h}"
 binary="$repo/.build/debug/pocketctrl"
 source="$repo/Sources/PocketCtrlHostCLI/main.swift"
 
+# Prefer a full Xcode toolchain; honor an existing DEVELOPER_DIR override.
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
+
 if [[ ! -x "$binary" || "$repo/Package.swift" -nt "$binary" || "$source" -nt "$binary" ]]; then
-  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift \
-    build --package-path "$repo" --product pocketctrl
+  xcrun swift build --package-path "$repo" --product pocketctrl
 fi
 
 exec "$binary" "$@"

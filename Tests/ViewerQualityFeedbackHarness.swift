@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Compiles the real Mac viewer setting, startup, and keyframe send methods
 // with a recording sender instead of a live network connection.
 final class QualityRecordingSender {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 var checks = 0
 func check(_ condition: @autoclosure () -> Bool, _ label: String) {
     precondition(condition(), label)

@@ -97,12 +97,33 @@ struct ContentView: View {
             )
         }
         .alert(item: $model.viewerUserFacingIssue) { issue in
-            Alert(
+            if let helpURL = connectionHelpURL(for: issue) {
+                return Alert(
+                    title: Text(issue.title),
+                    message: Text(issue.message + "\n\n" + MacHelpLinks.sameNetworkHint),
+                    primaryButton: .default(Text("Connection Help")) {
+                        NSWorkspace.shared.open(helpURL)
+                    },
+                    secondaryButton: .cancel(Text("OK"))
+                )
+            }
+            return Alert(
                 title: Text(issue.title),
                 message: Text(issue.message),
                 dismissButton: .default(Text("OK"))
             )
         }
+    }
+
+    /// Network-related viewer failures get a help button; credential and storage
+    /// issues do not, since a guide would not help there.
+    private func connectionHelpURL(for issue: ViewerUserFacingIssue) -> URL? {
+        let text = (issue.title + " " + issue.message).lowercased()
+        if text.contains("tailscale") { return MacHelpLinks.tailscaleGuide }
+        if text.contains("wi-fi") || text.contains("no video") || text.contains("connection") {
+            return MacHelpLinks.connectionHelp
+        }
+        return nil
     }
 
     private var pendingManualPairingBinding: Binding<PendingManualPairingRequest?> {
@@ -639,7 +660,7 @@ struct HostMenuBarView: View {
             }
 
             if let warning = model.hostNetworkWarning {
-                HostNetworkWarningBanner(message: warning)
+                HostNetworkWarningBanner(message: warning, helpTitle: "Set up Tailscale", helpURL: MacHelpLinks.tailscaleGuide)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -763,6 +784,15 @@ struct HostMenuBarView: View {
                 }
                 MenuBarValueRow(title: "Tailscale", value: model.tailscaleAddress, systemImage: "point.3.connected.trianglepath.dotted") {
                     copyToPasteboard(model.tailscaleAddress)
+                }
+
+                Text(MacHelpLinks.sameNetworkHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if model.tailscaleAddress == "Not detected" {
+                    MacHelpLinkButton(title: "Tailscale is off. Set it up for remote access", url: MacHelpLinks.tailscaleGuide)
                 }
 
                 HStack(spacing: 10) {
@@ -1176,7 +1206,7 @@ struct HostSidebarView: View {
             }
 
             if let warning = model.hostNetworkWarning {
-                HostNetworkWarningBanner(message: warning)
+                HostNetworkWarningBanner(message: warning, helpTitle: "Set up Tailscale", helpURL: MacHelpLinks.tailscaleGuide)
             }
         }
     }
@@ -1954,7 +1984,7 @@ struct HostWorkspaceView: View {
                     .lineLimit(2)
 
                 if let warning = model.hostNetworkWarning {
-                    HostNetworkWarningBanner(message: warning)
+                    HostNetworkWarningBanner(message: warning, helpTitle: "Set up Tailscale", helpURL: MacHelpLinks.tailscaleGuide)
                 }
             }
         }
@@ -2152,10 +2182,18 @@ struct HostWorkspaceView: View {
                 Text("Pair once. PocketCtrl prefers local Wi-Fi and uses Tailscale when needed.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+
+                Text("The other device must be on the same Wi-Fi network as this Mac, or both devices need Tailscale turned on.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                MacHelpLinkButton(title: "Tailscale setup guide", url: MacHelpLinks.tailscaleGuide)
             }
 
             if let warning = model.hostNetworkWarning {
-                HostNetworkWarningBanner(message: warning)
+                HostNetworkWarningBanner(message: warning, helpTitle: "Set up Tailscale", helpURL: MacHelpLinks.tailscaleGuide)
             }
 
             SecurePairingContent(model: model, qrSize: 248)
@@ -2414,6 +2452,16 @@ struct ViewerWorkspaceView: View {
                         }
 
                         Button {
+                            NotificationCenter.default.post(name: .pocketCtrlShowHostingControls, object: nil)
+                        } label: {
+                            Label("Start hosting on this device", systemImage: "dot.radiowaves.left.and.right")
+                                .font(.headline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(MacViewerHomeConnectButtonStyle())
+                        .help("Open the hosting controls for this Mac")
+
+                        Button {
                             isAddMacSheetPresented = true
                         } label: {
                             Label("Connect a new Mac", systemImage: "keyboard")
@@ -2430,6 +2478,11 @@ struct ViewerWorkspaceView: View {
                             .foregroundStyle(.white.opacity(0.55))
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
+
+                        MacHelpLinkButton(
+                            title: viewerDisconnectedStatusText.localizedCaseInsensitiveContains("tailscale") ? "Tailscale setup guide" : "Need help connecting?",
+                            url: viewerDisconnectedStatusText.localizedCaseInsensitiveContains("tailscale") ? MacHelpLinks.tailscaleGuide : MacHelpLinks.connectionHelp
+                        )
                     }
                     .padding(.horizontal, 42)
                     .padding(.vertical, 52)
@@ -2801,7 +2854,7 @@ struct MacViewerSavedComputersSection: View {
             if computers.isEmpty {
                 MacSettingsEmptyRow(
                     title: "No saved Macs yet",
-                    subtitle: "Connect a new Mac below or paste a pairing QR link."
+                    subtitle: "Connect a new Mac below or paste a pairing QR link. Both Macs must share a Wi-Fi network or have Tailscale on."
                 )
             } else {
                 VStack(spacing: 12) {
@@ -3472,6 +3525,9 @@ struct ManualPairingApprovalSheet: View {
                     Text("New Device Request")
                         .font(.title3.weight(.semibold))
                     Text("The name “\(request.viewerName)” was supplied by the requesting device.")
+                        .foregroundStyle(.secondary)
+                    Text("Approve while the other device is waiting. If the request expires, start pairing again.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -4369,8 +4425,31 @@ struct StatusRow: View {
     }
 }
 
+/// Inline link to a pocketctrl.com guide for connection and Tailscale help.
+struct MacHelpLinkButton: View {
+    let title: String
+    let url: URL
+
+    var body: some View {
+        Link(destination: url) {
+            HStack(spacing: 5) {
+                Image(systemName: "questionmark.circle")
+                Text(title)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.blue)
+        }
+        .buttonStyle(.plain)
+        .help("Opens the guide on pocketctrl.com")
+    }
+}
+
 struct HostNetworkWarningBanner: View {
     let message: String
+    var helpTitle: String? = nil
+    var helpURL: URL? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
@@ -4379,10 +4458,26 @@ struct HostNetworkWarningBanner: View {
                 .foregroundStyle(.orange)
                 .frame(width: 18, height: 18)
 
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.orange.opacity(0.95))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange.opacity(0.95))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let helpTitle, let helpURL {
+                    Link(destination: helpURL) {
+                        HStack(spacing: 4) {
+                            Text(helpTitle)
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption2.weight(.bold))
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Opens the Tailscale setup guide on pocketctrl.com")
+                }
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)

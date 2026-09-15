@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 // Test-only stand-ins for AVAudioSession. The production coordinator is loaded
 // unchanged except for its AVFoundation import; no microphone or speaker is used.
 import Foundation

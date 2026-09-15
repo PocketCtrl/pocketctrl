@@ -1,6 +1,6 @@
 # Contributing to PocketCtrl
 
-Thanks for helping improve PocketCtrl.
+Thanks for helping improve PocketCtrl. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Contribution terms
 
@@ -8,13 +8,32 @@ Before a contribution can be merged, its author must read and agree to the [Cont
 
 Contributions to the public client and core are released under MPL-2.0. The CLA does not transfer ownership of your contribution; it gives the PocketCtrl project the additional permissions needed to maintain a consistent licensing model and preserve flexibility for official versions.
 
+## Local setup
+
+The Xcode project does not contain an Apple Developer team. To run the apps on your own devices, copy
+`PocketCtrlNative/Config/Local.xcconfig.example` to `PocketCtrlNative/Config/Local.xcconfig` and set
+`DEVELOPMENT_TEAM` to your team ID. That file is gitignored; never commit it or add a team to the project file.
+Building with `CODE_SIGNING_ALLOWED=NO` (as CI does) needs no team.
+
+Shared schemes for `PocketCtrl` (Mac) and `PocketCtrlMobile` (iPhone/iPad) are checked in under
+`PocketCtrl.xcodeproj/xcshareddata`.
+
 ## Development checks
 
-Before opening a pull request, run:
+Before opening a pull request, run the same checks as CI:
 
 ```bash
 swift build --product pocketctrl
+zsh script/test_host_identity.sh
+zsh script/test_stream_quality.sh
+zsh script/test_network_endpoints.sh
+zsh script/test_audio_session.sh
+zsh script/test_speech_input.sh
+zsh script/test_mac_pointer.sh
+bash script/test_mac_release.sh
 ```
+
+The test scripts expect a full Xcode installation and default to `/Applications/Xcode.app`; set `DEVELOPER_DIR` if yours is elsewhere.
 
 For native app changes, also build the affected Xcode schemes with code signing disabled or run them on an appropriate simulator/device.
 

@@ -12,8 +12,6 @@ The project is pre-release software. Screen, audio, control, and clipboard traff
 - `Sources/PocketCtrlHostCLI/` — optional command-line control utility for the running Mac app.
 - `mcp/` — local MCP integration for controlling the Mac host.
 
-The website is maintained separately in [kylan02/PocketCtrlWebsite](https://github.com/kylan02/PocketCtrlWebsite).
-
 ## Requirements
 
 - macOS 15.6 or newer for the native Mac app
