@@ -69,6 +69,8 @@ case "$1" in
     (cd "$OUT" && shasum -a 256 "$ZIP" > "$ZIP.sha256")
     echo "Notarized download: $OUT/$ZIP"
     echo "Checksum: $OUT/$ZIP.sha256"
+    # Preserve ZIP compatibility and also create the drag-to-Applications installer.
+    bash "$ROOT/script/package_mac_dmg.sh" "$APP"
     echo "Not published. Test a browser-downloaded copy on another Mac before release."
     ;;
 esac

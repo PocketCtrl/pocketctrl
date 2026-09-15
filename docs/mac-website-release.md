@@ -14,7 +14,7 @@ on the intended Apple Developer team. Ask the account owner for access if needed
 1. In Xcode → Settings → Accounts, sign in to the intended developer team.
 2. Under Manage Certificates, obtain a **Developer ID Application** certificate with its private key.
    An Apple Development or Apple Distribution certificate is not a substitute. No Developer ID
-   Installer certificate is needed for our ZIP distribution.
+   Installer certificate is needed for our DMG/ZIP distribution.
 3. In Certificates, Identifiers & Profiles, use the existing explicit Mac App ID
    `app.pocketctrl.mac`. Create a **Developer ID** provisioning profile for this ID and certificate,
    download and install it in Xcode. Record its profile name or UUID.
@@ -50,9 +50,24 @@ NOTARY_PROFILE=PocketCtrl-Notary bash script/release_mac.sh package "/path/print
 ```
 
 `archive` is local. `package` uploads that build to Apple's notary service, waits for acceptance,
-staples and validates the ticket, checks Gatekeeper, and creates a final ZIP and SHA-256 file under
+staples and validates the ticket, checks Gatekeeper, and creates a final ZIP plus a signed,
+separately notarized drag-to-Applications DMG, each with a SHA-256 file under
 `release-output/`. It does **not** upload to the website, GitHub, Vercel, or App Store Connect.
 If notarization fails, inspect the submission using `xcrun notarytool log` before retrying.
+
+The DMG layout step uses Finder and needs a logged-in Mac desktop. If macOS asks,
+allow your terminal to control Finder. Packaging only arranges its temporary installer
+volume; it does not install or launch PocketCtrl. The DMG contains the same universal app
+and an Applications shortcut, with no administrator installer required.
+
+To wrap an already notarized, stapled app without rebuilding or re-notarizing the app itself:
+
+```sh
+NOTARY_PROFILE=PocketCtrl-Notary bash script/package_mac_dmg.sh "/path/to/notarized/PocketCtrl.app"
+```
+
+This still signs and notarizes the new DMG container. Keep existing ZIP assets available
+for compatibility; only change the website URL/checksum after uploading and testing the DMG.
 
 The scripts use the full Xcode at `/Applications/Xcode.app` without changing `xcode-select` globally.
 Set `DEVELOPER_DIR` if Xcode is elsewhere. The existing project's team is the default; `TEAM_ID` and
@@ -69,8 +84,9 @@ is regenerated after stapling. Bump the Mac version/build in Xcode before each r
 Use the notarized app, not Xcode's Debug copy. Quit other PocketCtrl copies first.
 Do not delete your development data to test: use a separate macOS account or spare Mac.
 
-- Download the final ZIP through a browser (so quarantine/Gatekeeper is actually exercised), unzip,
-  move into `/Applications`, and open with normal macOS security settings. Do not use `xattr -d` or disable Gatekeeper.
+- Download the final DMG through a browser (so quarantine/Gatekeeper is actually exercised), open it,
+  drag PocketCtrl to its Applications shortcut, eject the installer, and open PocketCtrl from Applications
+  with normal macOS security settings. Do not use `xattr -d` or disable Gatekeeper.
 - Fresh installation: onboarding, Screen Recording, Accessibility, Local Network acceptance/denial and recovery.
 - Pair a device with unattended access, quit/reopen both apps, and reconnect. Verify there are no
   Keychain write/verify errors. Test screen locking/unlocking separately; credentials retain their existing device-only, when-unlocked policy.
@@ -85,12 +101,13 @@ Do not delete your development data to test: use a separate macOS account or spa
 
 ## Publish and connect the website
 
-1. Upload only the final notarized ZIP and its `.sha256` to a public HTTPS download host.
+1. Upload the final notarized DMG and its `.sha256` to a public HTTPS download host.
+   The notarized ZIP and its checksum may also remain available as an alternative.
    A versioned GitHub Release asset is a suitable option once the repository is public.
    Do not publish the private `.xcarchive`, certificates, profiles, or credentials.
    Make the corresponding MPL-2.0 source and license available for that release.
 2. In the **separate PocketCtrlWebsite repo / Vercel project**, configure:
-   - `POCKETCTRL_MAC_DOWNLOAD_URL`: permanent public HTTPS URL of that exact ZIP, not a release HTML page.
+   - `POCKETCTRL_MAC_DOWNLOAD_URL`: permanent public HTTPS URL of that exact DMG, not a release HTML page.
    - `POCKETCTRL_MAC_VERSION`: its marketing version, e.g. `1.0`.
    - `POCKETCTRL_MAC_SHA256`: the 64-character checksum printed in the `.sha256` file.
 3. Deploy the website. `/download` then enables its download button; no URL means a coming-soon page.
