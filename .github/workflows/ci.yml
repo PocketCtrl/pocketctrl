@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test persistent host identity
+        run: zsh script/test_host_identity.sh
+      - name: Test stream quality controls and host limits
+        run: zsh script/test_stream_quality.sh
+      - name: Build control utility
+        run: swift build --product pocketctrl
+      - name: Build macOS app
+        run: xcodebuild -project PocketCtrlNative/PocketCtrl.xcodeproj -scheme PocketCtrl -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - name: Build iOS app
+        run: xcodebuild -project PocketCtrlNative/PocketCtrl.xcodeproj -scheme PocketCtrlMobile -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

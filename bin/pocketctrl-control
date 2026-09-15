@@ -1,0 +1,4 @@
+#!/bin/zsh
+# SPDX-License-Identifier: MPL-2.0
+
+exec "${0:A:h}/pocketctrl" "$@"

@@ -1,0 +1,124 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Swift / SwiftPM
+.build/
+.swiftpm/
+**/.build/
+**/.swiftpm/
+
+# Xcode user state and build output
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.xcarchive
+*.dSYM
+*.dSYM.zip
+*.mobileprovision
+*.provisionprofile
+*.dmg
+*.app/
+*.pkg
+*.developerprofile
+*.certSigningRequest
+*.csr
+*.pfx
+*.keychain
+*.keychain-db
+/release-output/
+
+# Captures, diagnostics, and local exports (may contain screen/input data)
+*.xcresult
+*.trace
+*.memgraph
+*.pcap
+*.pcapng
+*.har
+*.crash
+*.ips
+*.xcactivitylog
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.bundle
+
+# Web dependencies and generated output
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/.vercel/
+**/.turbo/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+.envrc
+.direnv/
+.npmrc
+.netrc
+*.pem
+*.key
+*.p12
+*.p8
+*.cer
+*.jks
+*.keystore
+GoogleService-Info.plist
+google-services.json
+service-account*.json
+credentials*.json
+*.credentials.json
+secrets*.json
+secrets*.yaml
+secrets*.yml
+cli-control-token
+cli-control-token.*
+
+# IDE and local tooling state
+.idea/
+.vscode/
+.claude/
+.mcp.json
+.cursor/
+*.swp
+*.swo
+*~
+.firebase/
+firebase-debug.log*
+
+# Local-only source material and preserved nested Git histories
+reference-repos/
+KylanMacControl/
+PocketCtrlWebsite/
+.git-history-backups/
+/Cloud/
+
+# Private release/submission working notes; public release guides remain tracked
+/docs/ios-app-store-submission.md
+/docs/mac-release-preparation.md
+/docs/app-readiness-work.md
+# Local Codex/agent workspace state
+.codex/
+.agents/

@@ -1,0 +1,9 @@
+// Used only by script/release_mac.sh, not by the iOS or everyday Debug build.
+ENABLE_APP_SANDBOX = NO
+ENABLE_HARDENED_RUNTIME = YES
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+CODE_SIGN_ENTITLEMENTS = $(SRCROOT)/../distribution/macos/Website.entitlements
+ONLY_ACTIVE_ARCH = NO
+ARCHS = arm64 x86_64
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym

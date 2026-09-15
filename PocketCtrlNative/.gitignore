@@ -1,0 +1,59 @@
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode user state, builds, archives, and signing material
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.xcarchive
+*.dSYM
+*.dSYM.zip
+*.mobileprovision
+*.provisionprofile
+
+# Swift / SwiftPM
+.build/
+.swiftpm/
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+.envrc
+.direnv/
+.netrc
+*.pem
+*.key
+*.p8
+*.p12
+*.cer
+*.jks
+*.keystore
+GoogleService-Info.plist
+google-services.json
+service-account*.json
+credentials*.json
+secrets*.json
+secrets*.yaml
+secrets*.yml
+
+# Logs, captures, and local diagnostics
+*.log
+*.trace
+*.memgraph
+*.xcresult
+*.pcap
+*.pcapng
+
+# Editors and local tooling
+.idea/
+.vscode/
+.codex/
+.agents/
