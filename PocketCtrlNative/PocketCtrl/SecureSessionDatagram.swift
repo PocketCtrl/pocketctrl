@@ -3,6 +3,7 @@
 import CryptoKit
 import Darwin
 import Foundation
+import OSLog
 
 enum SecureSessionChannel: UInt8 {
     case video = 1
@@ -322,12 +323,21 @@ final class SecureMultiPeerDatagramSender: DatagramSending {
     private let sessions: ActiveViewerSessionRegistry
     private let permissionWarningLock = NSLock()
     private var lastNetworkFailureReports: [String: Date] = [:]
+    private var recoveries: [String: LocalNetworkSendRecovery] = [:]
+    private var lastSocketRecovery: TimeInterval = -.infinity
+    private static let networkLogger = Logger(subsystem: "app.pocketctrl.mac", category: "LocalNetworkRecovery")
+    #if POCKETCTRL_NETWORK_DIAGNOSTICS
+    private let diagnosticTransport: MacTransportDiagnostics?
+    #endif
 
     init(sender: UDPMultiPeerSender, channel: SecureSessionChannel, port: UInt16, sessions: ActiveViewerSessionRegistry) {
         self.sender = sender
         self.channel = channel
         self.port = port
         self.sessions = sessions
+        #if POCKETCTRL_NETWORK_DIAGNOSTICS
+        diagnosticTransport = channel == .video ? MacTransportDiagnostics() : nil
+        #endif
     }
 
     func send(_ data: Data) throws {
@@ -349,9 +359,22 @@ final class SecureMultiPeerDatagramSender: DatagramSending {
                 secret: session.credential.secret
             ) else { continue }
             do {
+                #if POCKETCTRL_NETWORK_DIAGNOSTICS
+                if let diagnosticTransport {
+                    try diagnosticTransport.send(sealed, host: session.sourceHost, port: port, baseline: sender)
+                } else {
+                    try sender.send(sealed, toHost: session.sourceHost, port: port)
+                }
+                #else
                 try sender.send(sealed, toHost: session.sourceHost, port: port)
+                #endif
+                recordSuccessfulSend(host: session.sourceHost)
                 sentCount += 1
             } catch {
+                if recoverLocalSend(error, data: sealed, host: session.sourceHost) {
+                    sentCount += 1
+                    continue
+                }
                 firstError = firstError ?? error
                 reportLocalNetworkSendFailureIfNeeded(error, host: session.sourceHost)
             }
@@ -362,7 +385,79 @@ final class SecureMultiPeerDatagramSender: DatagramSending {
     }
 
     func stop() {
+        #if POCKETCTRL_NETWORK_DIAGNOSTICS
+        diagnosticTransport?.stop()
+        #endif
         sender.stop()
+    }
+
+    /// Explicit recovery after returning from Settings. Preserve authentication,
+    /// targets, and warning cooldowns; only re-arm failed LAN send recovery.
+    func retryFailedLocalConnections() {
+        permissionWarningLock.lock()
+        let hasFailures = recoveries.values.contains { $0.firstFailure != nil }
+        if hasFailures {
+            recoveries.removeAll()
+            lastSocketRecovery = -.infinity
+        }
+        permissionWarningLock.unlock()
+        guard hasFailures else { return }
+        do {
+            try sender.recreateSocket()
+            Self.networkLogger.notice("Retrying failed media connections after returning from Settings")
+        } catch {
+            Self.networkLogger.error("Media socket retry unavailable; normal bounded recovery will continue")
+        }
+    }
+
+    private func recordSuccessfulSend(host: String) {
+        permissionWarningLock.lock()
+        let wasFailing = recoveries[host]?.firstFailure != nil
+        recoveries[host]?.succeeded()
+        permissionWarningLock.unlock()
+        if wasFailing {
+            Self.networkLogger.notice("LAN media send recovered channel=\(self.channel.rawValue, privacy: .public)")
+        }
+    }
+
+    #if POCKETCTRL_NETWORK_DIAGNOSTICS
+    func recordDiagnosticFeedback(_ feedback: ViewerFeedback) {
+        diagnosticTransport?.recordViewerFeedback(fps: feedback.fps, frames: feedback.completedFrames, chunks: feedback.receivedChunks)
+    }
+    #endif
+
+    private func recoverLocalSend(_ error: Error, data: Data, host: String) -> Bool {
+        #if POCKETCTRL_NETWORK_DIAGNOSTICS
+        // Preserve the chosen API/socket throughout each controlled experiment.
+        if diagnosticTransport != nil { return false }
+        #endif
+        guard case let UDPSocketError.sendFailed(code) = error,
+              code == EPERM || code == EACCES || code == EHOSTUNREACH,
+              NetworkAddressPolicy.isPrivateOrLocalAddress(host),
+              !NetworkAddressPolicy.isTailscaleAddress(host), !IPNetwork.isLoopback(host) else { return false }
+        let now = ProcessInfo.processInfo.systemUptime
+        permissionWarningLock.lock()
+        if recoveries[host] == nil, recoveries.count >= 128 { recoveries.removeAll() }
+        var recovery = recoveries[host] ?? LocalNetworkSendRecovery()
+        let firstFailure = recovery.firstFailure == nil
+        let retry = recovery.failed(at: now) && now - lastSocketRecovery >= 2
+        if retry { lastSocketRecovery = now }
+        recoveries[host] = recovery
+        permissionWarningLock.unlock()
+        if firstFailure {
+            Self.networkLogger.error("LAN media send failed errno=\(code, privacy: .public) channel=\(self.channel.rawValue, privacy: .public); allowing permission/recovery grace period")
+        }
+        guard retry else { return false }
+        Self.networkLogger.notice("Recreating LAN media socket attempt=\(recovery.attempts, privacy: .public) channel=\(self.channel.rawValue, privacy: .public)")
+        do {
+            try sender.recreateSocket()
+            try sender.send(data, toHost: host, port: port)
+            recordSuccessfulSend(host: host)
+            return true
+        } catch {
+            // Do not log the Error description: some transport errors contain addresses.
+            return false
+        }
     }
 
     private func reportLocalNetworkSendFailureIfNeeded(_ error: Error, host: String) {
@@ -376,6 +471,10 @@ final class SecureMultiPeerDatagramSender: DatagramSending {
 
         let now = Date()
         permissionWarningLock.lock()
+        if isLAN, recoveries[host]?.shouldWarn(at: ProcessInfo.processInfo.systemUptime) != true {
+            permissionWarningLock.unlock()
+            return
+        }
         let shouldReport = now.timeIntervalSince(lastNetworkFailureReports[route] ?? .distantPast) >= 10
         if shouldReport {
             lastNetworkFailureReports[route] = now
@@ -383,6 +482,7 @@ final class SecureMultiPeerDatagramSender: DatagramSending {
         permissionWarningLock.unlock()
 
         guard shouldReport else { return }
+        Self.networkLogger.error("Media send still failing route=\(route, privacy: .public) errno=\(code, privacy: .public) channel=\(self.channel.rawValue, privacy: .public)")
         let action = isLAN ? "checking warning" : "skipping Local Network warning for non-LAN route"
         NSLog("PocketCtrl network send failure route=%@ errno=%d: %@", route, code, action)
         PocketCtrlHostDiagnostics.write("network send failure route=\(route) errno=\(code): \(action)")

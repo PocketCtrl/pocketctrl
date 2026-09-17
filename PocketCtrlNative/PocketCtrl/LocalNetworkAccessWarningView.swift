@@ -9,9 +9,9 @@ import SwiftUI
 final class LocalNetworkAccessWarningController {
     private var windowController: NSWindowController?
 
-    func showWarning() -> Bool {
+    func showWarning(onOpenSettings: @escaping () -> Void = {}) -> Bool {
         if windowController == nil {
-            let content = NSHostingController(rootView: LocalNetworkAccessWarningView(onDismiss: { [weak self] in
+            let content = NSHostingController(rootView: LocalNetworkAccessWarningView(onOpenSettings: onOpenSettings, onDismiss: { [weak self] in
                 self?.windowController?.close()
             }))
             let window = NSWindow(
@@ -41,6 +41,7 @@ final class LocalNetworkAccessWarningController {
 }
 
 struct LocalNetworkAccessWarningView: View {
+    let onOpenSettings: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -48,10 +49,10 @@ struct LocalNetworkAccessWarningView: View {
             Label("Check Local Network Access", systemImage: "wifi.exclamationmark")
                 .font(.headline)
 
-            Text("A nearby device is trying to connect, but PocketCtrl couldn’t send data back over local Wi-Fi. Local Network access may be turned off in macOS.")
+            Text("A nearby device connected, but PocketCtrl couldn’t send media over local Wi-Fi. macOS may be blocking the connection even if Local Network access is already enabled. The network may also be unreachable.")
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("In System Settings → Privacy & Security → Local Network, turn on PocketCtrl, then try connecting again.")
+            Text("Open System Settings → Privacy & Security → Local Network. Turn PocketCtrl off, then back on, and try connecting again. This may refresh macOS’s permission state. If it still doesn’t connect, quit and reopen PocketCtrl. Restarting your Mac may also help.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -60,6 +61,7 @@ struct LocalNetworkAccessWarningView: View {
                 Button("Not Now") { onDismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Open Settings") {
+                    onOpenSettings()
                     MacPermissions.openLocalNetworkSettings()
                     onDismiss()
                 }

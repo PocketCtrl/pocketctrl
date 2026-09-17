@@ -117,6 +117,8 @@ final class UDPSender: DatagramSending {
 
 final class UDPMultiPeerSender: DatagramSending {
     private var socketFD: Int32
+    // Sending, rebuilding, and stopping must not race over a reused descriptor.
+    private let socketLock = NSLock()
     private var destinations: [String: sockaddr_in6] = [:]
     private var routedDestinations: [String: sockaddr_in6] = [:]
     private let destinationLock = NSLock()
@@ -141,6 +143,8 @@ final class UDPMultiPeerSender: DatagramSending {
     }
 
     func send(_ data: Data, toHost host: String, port: UInt16) throws {
+        socketLock.lock()
+        defer { socketLock.unlock() }
         guard socketFD >= 0 else { throw UDPSocketError.sendFailed(EBADF) }
         let key = "\(host):\(port)"
         destinationLock.lock()
@@ -204,6 +208,8 @@ final class UDPMultiPeerSender: DatagramSending {
     }
 
     func send(_ data: Data) throws {
+        socketLock.lock()
+        defer { socketLock.unlock() }
         guard socketFD >= 0 else { throw UDPSocketError.sendFailed(EBADF) }
         destinationLock.lock()
         let destinationCopies = destinations
@@ -235,10 +241,55 @@ final class UDPMultiPeerSender: DatagramSending {
         }
     }
 
+    /// Refresh a socket whose local-network policy may predate user approval.
+    /// Does not change permissions, destinations, or authenticated sessions.
+    func recreateSocket() throws {
+        socketLock.lock()
+        defer { socketLock.unlock() }
+        guard socketFD >= 0 else { throw UDPSocketError.sendFailed(EBADF) }
+        let replacement = IPNetwork.makeUDPSocket()
+        guard replacement >= 0 else { throw UDPSocketError.socketCreationFailed(errno) }
+        UDPSocketTuning.configureLowLatencySender(replacement, serviceType: NET_SERVICE_TYPE_RV, sendBufferBytes: 64 * 1024, setNonBlocking: true)
+        let previous = socketFD
+        socketFD = replacement
+        close(previous)
+    }
+
     func stop() {
+        socketLock.lock()
+        defer { socketLock.unlock() }
         guard socketFD >= 0 else { return }
         close(socketFD)
         socketFD = -1
+    }
+}
+
+/// Monotonic, bounded retries while the first Local Network decision settles.
+/// Successful sends clear the episode, but keep a cooldown against socket churn.
+struct LocalNetworkSendRecovery {
+    private(set) var firstFailure: TimeInterval?
+    private(set) var attempts = 0
+    private var lastAttempt: TimeInterval = -.infinity
+
+    mutating func failed(at now: TimeInterval) -> Bool {
+        if firstFailure == nil { firstFailure = now }
+        // Leave retries available if the user takes a while to answer the OS
+        // prompt. Never recreate per packet or retry indefinitely after denial.
+        let delays: [TimeInterval] = [2, 2, 4, 8, 16, 30]
+        guard attempts < delays.count, now - lastAttempt >= delays[attempts] else { return false }
+        attempts += 1
+        lastAttempt = now
+        return true
+    }
+
+    func shouldWarn(at now: TimeInterval) -> Bool {
+        guard let firstFailure else { return false }
+        return now - firstFailure >= 15
+    }
+
+    mutating func succeeded() {
+        firstFailure = nil
+        attempts = 0
     }
 }
 

@@ -34,6 +34,9 @@ private enum SettingsPane: String {
 private struct PocketCtrlGeneralSettingsPane: View {
     @ObservedObject var model: RemoteDesktopModel
     @ObservedObject var updater: PocketCtrlUpdater
+    #if POCKETCTRL_NETWORK_DIAGNOSTICS
+    @AppStorage(MacDiagnosticTransport.preference) private var diagnosticTransport = MacDiagnosticTransport.dualStack.rawValue
+    #endif
 
     var body: some View {
         ZStack {
@@ -86,13 +89,34 @@ private struct PocketCtrlGeneralSettingsPane: View {
                         )
                     }
 
+                    #if POCKETCTRL_NETWORK_DIAGNOSTICS
+                    MacSettingsSection(title: "Local Network Test — build 4", systemImage: "network") {
+                        Picker("Video transport", selection: $diagnosticTransport) {
+                            ForEach(MacDiagnosticTransport.allCases) { transport in
+                                Text(transport.title).tag(transport.rawValue)
+                            }
+                        }
+                        .disabled(model.isHostingRequested)
+                        Text("Stop hosting before changing the method, then start hosting and connect your iPhone. Leave Local Network permission unchanged between tests. Native IPv4 requires an IPv4 connection.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Test each method for 20 seconds. Report whether video appears; a successful send alone does not prove delivery. Automatic socket recovery is disabled for this comparison.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    #endif
+
                     MacSettingsSection(title: "About", systemImage: "info.circle") {
                         HStack {
                             Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
                             Spacer()
                             PocketCtrlUpdateButton(updater: updater)
                         }
-                        #if DEBUG
+                        #if POCKETCTRL_NETWORK_DIAGNOSTICS
+                        Text("Local diagnostic build 4. Updates are disabled.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        #elseif DEBUG
                         Text("Updates are available in the installed release app, not Xcode builds.")
                             .font(.caption)
                             .foregroundStyle(.secondary)

@@ -28,7 +28,7 @@ trap cleanup EXIT
 mkdir -p "$WORK/staging" "$MOUNT"
 ditto "$SOURCE" "$WORK/staging/PocketCtrl.app"
 ln -s /Applications "$WORK/staging/Applications"
-hdiutil create -fs HFS+ -format UDRW -volname 'PocketCtrl - Drag to Applications' \
+hdiutil create -fs HFS+ -format UDRW -volname "PocketCtrl $VERSION ($BUILD) - Drag to Applications" \
   -srcfolder "$WORK/staging" "$WORK/layout.dmg"
 hdiutil attach "$WORK/layout.dmg" -mountpoint "$MOUNT" -nobrowse
 MOUNTED=true

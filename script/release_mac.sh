@@ -35,6 +35,11 @@ case "$1" in
     [[ -n "${TEAM_ID:-}" ]] || fail "Set TEAM_ID (or DEVELOPMENT_TEAM in PocketCtrlNative/Config/Local.xcconfig) to your Apple Developer team."
     mkdir -p "$ROOT/.build/mac-release"
     WORK="$(mktemp -d "$ROOT/.build/mac-release/archive.XXXXXX")"
+    EXTRA_SETTINGS=()
+    if [[ "${NETWORK_DIAGNOSTICS:-0}" == 1 ]]; then
+      echo "LOCAL DIAGNOSTIC BUILD: transport comparison enabled; do not publish."
+      EXTRA_SETTINGS+=("SWIFT_ACTIVE_COMPILATION_CONDITIONS=POCKETCTRL_NETWORK_DIAGNOSTICS")
+    fi
     # Intentionally no -allowProvisioningUpdates: this never changes the Developer portal.
     xcrun xcodebuild archive \
       -project "$PROJECT" -scheme PocketCtrl -configuration Release \
@@ -43,7 +48,7 @@ case "$1" in
       -xcconfig "$ROOT/distribution/macos/Website.xcconfig" \
       DEVELOPMENT_TEAM="$TEAM_ID" \
       CODE_SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application}" \
-      PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME"
+      PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" ${EXTRA_SETTINGS[@]+"${EXTRA_SETTINGS[@]}"}
     # Export re-signs nested Sparkle helper apps/XPC services for Developer ID.
     # The raw archive's outer signature alone is insufficient for notarization.
     xcrun swift "$ROOT/script/mac_export_options.swift" "$TEAM_ID" "$PROFILE_NAME" "$WORK/ExportOptions.plist"

@@ -175,6 +175,8 @@ final class RemoteDesktopModel: ObservableObject {
     @Published private(set) var activeControllerLastSeen: Date?
     @Published private(set) var connectedViewers: [ConnectedViewer] = []
     @Published private(set) var approvalAuthenticationInProgress = false
+    // Legacy CLI field: discovery availability only, not a system permission query
+    // or proof that authenticated video has reached a viewer.
     @Published var localNetworkApproved = false
     @Published var directCaptureApproved = false
     @Published var directCaptureStatus = "Direct screen access not checked"
@@ -282,6 +284,7 @@ final class RemoteDesktopModel: ObservableObject {
     private var lastNetworkRefreshAt = Date.distantPast
     private var shouldRestartHostAfterWake = false
     private var shouldRefreshSetupOnActivation = false
+    private var shouldRetryMediaOnActivation = false
     private var hasAttemptedViewerAutoReconnect = false
     private var isUpdatingViewerAudioInternally = false
     private var isApplyingLaunchAtLoginState = false
@@ -444,9 +447,8 @@ final class RemoteDesktopModel: ObservableObject {
 
     func refreshSetupStatus(probeDirectCapture: Bool = true) async {
         await refreshPermissions()
-        if allowLocalDiscovery, !isHosting {
-            probeLocalNetworkPermission()
-        }
+        // A passive setup refresh must not trigger a second permission prompt.
+        // Local Network is requested explicitly, or when hosting/pairing starts.
         if probeDirectCapture {
             if screenRecordingGranted {
                 await refreshDisplayAccessStatus()
@@ -519,6 +521,7 @@ final class RemoteDesktopModel: ObservableObject {
 
     func openLocalNetworkSettings() {
         shouldRefreshSetupOnActivation = true
+        shouldRetryMediaOnActivation = true
         permissionLogger.info("Opening Local Network settings from path=\(Bundle.main.bundleURL.path, privacy: .private)")
         MacPermissions.openLocalNetworkSettings()
     }
@@ -660,7 +663,13 @@ final class RemoteDesktopModel: ObservableObject {
             host.onFeedback = { [weak self] feedback, targetBitrate in
                 Task { @MainActor in
                     let quality = (feedback.qualityProfile ?? .balanced).rawValue
-                    self?.viewerFeedbackStatus = "\(feedback.fps) fps viewer, \(String(format: "%.1f", feedback.estimatedLossPercent))% estimated loss, quality \(quality), target \(String(format: "%.1f", Double(targetBitrate) / 1_000_000)) Mbps"
+                    if feedback.completedFrames > 0 {
+                        self?.viewerFeedbackStatus = "Video received · \(feedback.fps) fps viewer, \(String(format: "%.1f", feedback.estimatedLossPercent))% estimated loss, quality \(quality), target \(String(format: "%.1f", Double(targetBitrate) / 1_000_000)) Mbps"
+                    } else if feedback.receivedChunks > 0 {
+                        self?.viewerFeedbackStatus = "Video packets received · waiting for a complete frame"
+                    } else {
+                        self?.viewerFeedbackStatus = "Device connected · waiting for video delivery"
+                    }
                     self?.hostBitrateMbps = Double(targetBitrate) / 1_000_000
                 }
             }
@@ -709,7 +718,9 @@ final class RemoteDesktopModel: ObservableObject {
                     // and the in-app discovery toggle don't establish current
                     // permission to send video. Keep the warning tentative:
                     // unreachable can also mean a genuine network problem.
-                    let didShow = self.localNetworkAccessWarningController.showWarning()
+                    let didShow = self.localNetworkAccessWarningController.showWarning { [weak self] in
+                        self?.shouldRetryMediaOnActivation = true
+                    }
                     self.didWarnAboutLocalNetworkAccess = didShow
                     NSLog("PocketCtrl Local Network warning presentation visible=%@ errno=%d", didShow.description, code)
                     PocketCtrlHostDiagnostics.write("Local Network warning presentation visible=\(didShow) errno=\(code)")
@@ -1402,6 +1413,10 @@ final class RemoteDesktopModel: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in
                     guard let self else { return }
+                    if self.shouldRetryMediaOnActivation {
+                        self.shouldRetryMediaOnActivation = false
+                        self.host?.retryFailedMediaConnections()
+                    }
                     self.retryTrustedDeviceCredentialLoadsIfNeeded()
                     let restoredCredential = self.retryViewerCredentialLoadIfNeeded()
                     if restoredCredential,
@@ -1907,7 +1922,7 @@ final class RemoteDesktopModel: ObservableObject {
         PocketCtrlHostDiagnostics.connection("discovery.publisherStatus probe=\(isPermissionProbe) status=\(status)")
         if status == "Local discovery on" {
             localNetworkApproved = true
-            localDiscoveryStatus = isPermissionProbe ? "Local Network allowed" : status
+            localDiscoveryStatus = isPermissionProbe ? "Discovery available · video is checked when a device connects" : status
             if isPermissionProbe {
                 localNetworkProbeTask?.cancel()
                 localNetworkProbeTask = nil

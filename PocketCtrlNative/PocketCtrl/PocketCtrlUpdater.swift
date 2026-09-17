@@ -13,7 +13,7 @@ final class PocketCtrlUpdater: ObservableObject {
     init() {
         // Updates are user initiated: never interrupt an active remote session
         // with an unattended installation or replace an Xcode development build.
-        #if DEBUG
+        #if DEBUG || POCKETCTRL_NETWORK_DIAGNOSTICS
         let enabled = false
         #else
         let enabled = true

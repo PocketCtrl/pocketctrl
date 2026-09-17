@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Real sockets on loopback, not mocked transport. Bound ports are ephemeral.
+var recovery = LocalNetworkSendRecovery()
+check(recovery.failed(at: 100), "first LAN failure requests a fresh socket")
+check(!recovery.failed(at: 101), "packet bursts do not repeatedly recreate sockets")
+check(recovery.failed(at: 102) && !recovery.failed(at: 104) && recovery.failed(at: 106), "permission recovery retries back off")
+check(recovery.failed(at: 114), "recovery remains available after a slow permission response")
+check(!recovery.shouldWarn(at: 114) && recovery.shouldWarn(at: 115), "permission prompt receives a fifteen-second grace period")
+check(recovery.failed(at: 130) && recovery.failed(at: 160), "later retries accommodate delayed permission approval")
+check(!recovery.failed(at: 200), "persistent denial exhausts the six-attempt budget")
+recovery.succeeded()
+check(!recovery.shouldWarn(at: 210), "successful sends clear pending warning state")
+check(recovery.failed(at: 210), "a later failure can recover again")
+recovery.succeeded()
+check(!recovery.failed(at: 211), "success does not remove the socket-churn cooldown")
 DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
     fatalError("Network regression test timed out waiting for a datagram")
 }
@@ -65,6 +78,11 @@ try fanout.send(message, toHost: "127.0.0.1", port: port)
 check(receiver.receiveWithSource()?.sourceHost == "127.0.0.1", "per-viewer fanout retains IPv4 replies")
 try fanout.send(message, toHost: "::1", port: port)
 check(receiver.receiveWithSource()?.sourceHost == "::1", "same fanout sender supports IPv6 replies")
+try fanout.recreateSocket()
+try fanout.send(message, toHost: "127.0.0.1", port: port)
+check(receiver.receiveWithSource()?.data == message, "recreated media socket sends IPv4 without restarting the receiver")
+try fanout.send(message, toHost: "::1", port: port)
+check(receiver.receiveWithSource()?.data == message, "recreated media socket retains IPv6 support")
 
 let mobilePort = unusedUDPPort()
 let mobile = try ClientUDPReceiver(port: mobilePort)
@@ -77,5 +95,11 @@ check(mobileV6?.data == message && mobileV6?.senderAddress == "::1", "iOS receiv
 mobile.stop()
 receiver.stop()
 fanout.stop()
+do {
+    try fanout.recreateSocket()
+    fatalError("Stopped media sender must not restart")
+} catch UDPSocketError.sendFailed(let code) {
+    check(code == EBADF, "recovery cannot resurrect a stopped sender")
+}
 ipv4.stop()
 ipv6.stop()

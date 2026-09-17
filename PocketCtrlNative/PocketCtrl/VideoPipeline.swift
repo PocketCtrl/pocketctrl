@@ -889,7 +889,15 @@ final class ScreenCaptureHost: NSObject, SCStreamOutput, SCStreamDelegate {
         lastStatsDate = now
     }
 
+    func retryFailedMediaConnections() {
+        sender.retryFailedLocalConnections()
+        audioSender.retryFailedLocalConnections()
+    }
+
     private func handle(feedback: ViewerFeedback, deviceID: String) {
+        #if POCKETCTRL_NETWORK_DIAGNOSTICS
+        sender.recordDiagnosticFeedback(feedback)
+        #endif
         let aggregateFeedback = sessionRegistry.updateFeedback(feedback, deviceID: deviceID)
         let feedbackQuality = aggregateFeedback.qualityProfile ?? .balanced
         NSLog("PocketCtrl host received aggregate viewer feedback fps=\(aggregateFeedback.fps) chunks=\(aggregateFeedback.receivedChunks) frames=\(aggregateFeedback.completedFrames) skipped=\(aggregateFeedback.skippedFrames) keyframe=\(aggregateFeedback.keyframeRequested ?? false) quality=\(feedbackQuality.rawValue)")
