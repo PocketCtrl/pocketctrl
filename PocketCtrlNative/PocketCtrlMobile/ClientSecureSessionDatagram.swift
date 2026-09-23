@@ -6,6 +6,7 @@ import Foundation
 enum ClientSecureSessionChannel: UInt8 {
     case video = 1
     case audio = 2
+    case computerUse = 3
 }
 
 enum ClientSecureSessionDatagram {

@@ -450,6 +450,7 @@ enum ControlPayloadType: String, Codable {
     case feedback
     case zoomRegion
     case audioSetting
+    case computerUse
     case clipboard
 }
 
@@ -1006,6 +1007,15 @@ final class RemoteInputSender {
 }
 
 final class RemoteInputListener {
+    var computerUseGate: ComputerUseExecutionGate?
+    var onComputerUse: ((ComputerUseFragment, TrustedDeviceCredential) -> Void)?
+    private let controllerLock = NSRecursiveLock()
+    func reserveComputerUse(_ credential: TrustedDeviceCredential) -> Bool {
+        controllerLock.lock(); defer { controllerLock.unlock() }
+        guard let computerUseGate, !computerUseGate.ownsControl else { return false }
+        return allowActiveController(credential: credential, sourceHost: nil)
+    }
+
     private struct AuthenticatedPacketWindow {
         var startedAt: Date
         var count: Int
@@ -1157,10 +1167,14 @@ final class RemoteInputListener {
                 self.onAuthenticatedDevice(authenticated.credential, datagram.sourceHost)
 
                 switch authenticated.type {
+                case .computerUse:
+                    guard let fragment = try? self.decoder.decode(ComputerUseFragment.self, from: authenticated.payload) else { continue }
+                    self.onComputerUse?(fragment, authenticated.credential)
                 case .feedback:
                     guard let feedback = try? self.decoder.decode(ViewerFeedback.self, from: authenticated.payload) else { continue }
                     self.onFeedback(feedback, authenticated.credential)
                 case .zoomRegion:
+                    guard self.computerUseGate?.ownsControl != true else { continue }
                     guard self.isInputEnabled,
                           authenticated.credential.record.allowsRemoteInput,
                           self.allowActiveController(credential: authenticated.credential, sourceHost: sourceHost) else { continue }
@@ -1171,11 +1185,13 @@ final class RemoteInputListener {
                     guard let setting = try? self.decoder.decode(ViewerAudioSetting.self, from: authenticated.payload) else { continue }
                     self.onAudioSetting(setting, authenticated.credential)
                 case .clipboard:
+                    guard self.computerUseGate?.ownsControl != true else { continue }
                     guard authenticated.credential.record.allowsClipboard else { continue }
                     guard self.allowActiveController(credential: authenticated.credential, sourceHost: sourceHost) else { continue }
                     guard let clipboard = try? self.decoder.decode(ClipboardPayload.self, from: authenticated.payload) else { continue }
                     self.onClipboard(clipboard)
                 case .input:
+                    guard self.computerUseGate?.ownsControl != true else { continue }
                     guard self.isInputEnabled else {
                         if !self.didLogDisabledInput {
                             self.didLogDisabledInput = true
@@ -1215,13 +1231,12 @@ final class RemoteInputListener {
     }
 
     func disconnect(deviceID: String) {
-        queue.async { [weak self] in
-            guard let self, self.activeControllerCredentialID == deviceID else { return }
-            self.injector.releaseActiveInputs()
-            self.activeControllerCredentialID = nil
-            self.activeControllerLastSeen = .distantPast
-            self.onActiveControllerChanged(nil, nil)
-        }
+        controllerLock.lock(); defer { controllerLock.unlock() }
+        guard activeControllerCredentialID == deviceID else { return }
+        if computerUseGate?.ownsControl != true { injector.releaseActiveInputs() }
+        activeControllerCredentialID = nil
+        activeControllerLastSeen = .distantPast
+        onActiveControllerChanged(nil, nil)
     }
 
     private var isInputEnabled: Bool {
@@ -1254,6 +1269,7 @@ final class RemoteInputListener {
     }
 
     private func allowActiveController(credential: TrustedDeviceCredential, sourceHost: String?) -> Bool {
+        controllerLock.lock(); defer { controllerLock.unlock() }
         let now = Date()
         let credentialID = credential.record.id
         guard let activeControllerCredentialID else {
@@ -1283,6 +1299,8 @@ final class RemoteInputListener {
     }
 
     private func expireActiveControllerIfNeeded(now: Date = Date()) {
+        controllerLock.lock(); defer { controllerLock.unlock() }
+        guard computerUseGate?.ownsControl != true else { return }
         guard activeControllerCredentialID != nil,
               now.timeIntervalSince(activeControllerLastSeen) >= Self.activeControllerTimeout else { return }
         injector.releaseActiveInputs()
@@ -1324,7 +1342,72 @@ final class RemoteInputListener {
     }
 }
 
-final class MacInputInjector {
+// All mutable input state is confined to queue; the gate serializes ownership.
+final class MacInputInjector: @unchecked Sendable {
+    private struct TransferredEvent: @unchecked Sendable { let value: CGEvent }
+    private let eventPoster: (CGEvent) -> Void
+    var computerUseGate: ComputerUseExecutionGate?
+
+    func postComputerEvent(_ event: CGEvent, token: UInt64) async throws {
+        let transferred = TransferredEvent(value: event)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async { [weak self] in
+                guard let self, let gate = self.computerUseGate else { continuation.resume(throwing: CancellationError()); return }
+                let posted = gate.perform(token) {
+                    let event = transferred.value
+                    switch event.type {
+                    case .leftMouseDown: self.activeMouseButton = .left
+                    case .rightMouseDown: self.activeMouseButton = .right
+                    case .otherMouseDown: self.activeMouseButton = .center
+                    case .leftMouseUp, .rightMouseUp, .otherMouseUp: self.activeMouseButton = nil
+                    case .keyDown: self.activeKeyCodes.insert(UInt16(event.getIntegerValueField(.keyboardEventKeycode)))
+                    case .keyUp: self.activeKeyCodes.remove(UInt16(event.getIntegerValueField(.keyboardEventKeycode)))
+                    case .flagsChanged:
+                        // Quartz creates flagsChanged, rather than keyDown/keyUp, for modifier keys.
+                        let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+                        let mask: CGEventFlags
+                        switch code {
+                        case 54, 55: mask = .maskCommand
+                        case 56, 60: mask = .maskShift
+                        case 58, 61: mask = .maskAlternate
+                        case 59, 62: mask = .maskControl
+                        default: mask = []
+                        }
+                        if !mask.isEmpty && event.flags.contains(mask) { self.activeKeyCodes.insert(code) }
+                        else { self.activeKeyCodes.remove(code) }
+                    default: break
+                    }
+                    self.eventPoster(event)
+                }
+                if posted { continuation.resume() } else { continuation.resume(throwing: CancellationError()) }
+            }
+        }
+    }
+
+    func emergencyReleaseInputs() async {
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                self?.emergencyReleaseNow()
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Only called by the main-thread application-termination handler.
+    func emergencyReleaseInputsBeforeExit() {
+        queue.sync { emergencyReleaseNow() }
+    }
+
+    private func emergencyReleaseNow() {
+        pendingPointerFlush?.cancel(); pendingPointerFlush = nil; pendingPointerMove = nil
+        if let button = activeMouseButton {
+            postMouse(type: mouseUpType(for: button), input: .currentPointerButton(.mouseUp, button: button), button: button)
+            activeMouseButton = nil
+        }
+        for code in activeKeyCodes { postKey(.key(.keyUp, keyCode: code, modifiers: []), isDown: false) }
+        activeKeyCodes.removeAll()
+    }
+
     private static let pointerFlushInterval: DispatchTimeInterval = .milliseconds(4)
     private let eventSource = CGEventSource(stateID: .hidSystemState)
     private let displayIDProvider: () -> CGDirectDisplayID
@@ -1337,8 +1420,10 @@ final class MacInputInjector {
     private var debugPostedInputCount = 0
     private var debugInjectedPointerCount = 0
 
-    init(displayIDProvider: @escaping () -> CGDirectDisplayID) {
+    init(displayIDProvider: @escaping () -> CGDirectDisplayID,
+         eventPoster: @escaping (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) {
         self.displayIDProvider = displayIDProvider
+        self.eventPoster = eventPoster
     }
 
     func requestAccessibilityTrust() {
@@ -1438,6 +1523,11 @@ final class MacInputInjector {
     }
 
     private func postNow(_ input: RemoteInputEvent) {
+        if let gate = computerUseGate { gate.performManual { self.postManualNow(input) } }
+        else { postManualNow(input) }
+    }
+
+    private func postManualNow(_ input: RemoteInputEvent) {
         switch input.kind {
         case .mouseMove:
             if let activeMouseButton {
@@ -1482,7 +1572,7 @@ final class MacInputInjector {
         }
         event.flags = CGEventFlags(rawValue: input.modifiers)
         event.setIntegerValueField(.mouseEventClickState, value: Int64(input.normalizedClickCount))
-        event.post(tap: .cghidEventTap)
+        self.eventPoster(event)
     }
 
     private func postNormalizedRelativeMouse(_ input: RemoteInputEvent) {
@@ -1521,7 +1611,7 @@ final class MacInputInjector {
         event.setIntegerValueField(.mouseEventDeltaX, value: Int64(deltaX.rounded()))
         event.setIntegerValueField(.mouseEventDeltaY, value: Int64(deltaY.rounded()))
         event.flags = CGEventFlags(rawValue: input.modifiers)
-        event.post(tap: .cghidEventTap)
+        self.eventPoster(event)
     }
 
     private func shouldLogInjectorEvent(_ event: RemoteInputEvent) -> Bool {
@@ -1544,7 +1634,7 @@ final class MacInputInjector {
         ) else {
             return
         }
-        event.post(tap: .cghidEventTap)
+        self.eventPoster(event)
     }
 
     private func postKey(_ input: RemoteInputEvent, isDown: Bool) {
@@ -1552,7 +1642,7 @@ final class MacInputInjector {
             return
         }
         event.flags = CGEventFlags(rawValue: input.modifiers)
-        event.post(tap: .cghidEventTap)
+        self.eventPoster(event)
     }
 
     private func pointForNormalizedPosition(x: Double, y: Double) -> CGPoint {

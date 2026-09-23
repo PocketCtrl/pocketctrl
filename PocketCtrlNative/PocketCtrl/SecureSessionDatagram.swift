@@ -8,6 +8,7 @@ import OSLog
 enum SecureSessionChannel: UInt8 {
     case video = 1
     case audio = 2
+    case computerUse = 3
 }
 
 enum SecureSessionDatagram {

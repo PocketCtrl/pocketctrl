@@ -35,13 +35,18 @@ private struct RemoteClickSequence {
 
 struct RemotePointerSurface: View {
     @ObservedObject var model: ClientModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isHidden: Bool
+    private var displayedPosition: CGPoint {
+        if let pointer = model.computerUse.remotePointer { return CGPoint(x: pointer.x, y: pointer.y) }
+        return model.pointerPosition
+    }
 
     var body: some View {
         GeometryReader { proxy in
             Color.clear
                 .overlay(alignment: .topLeading) {
-                    if !isHidden, model.showRemotePointer {
+                    if model.computerUse.showsPointer(manualEnabled: model.showRemotePointer, controlsHidden: isHidden) {
                         pointerReticle(in: proxy.size)
                     }
                 }
@@ -55,10 +60,12 @@ struct RemotePointerSurface: View {
             .background(Circle().fill(.blue.opacity(0.18)))
             .frame(width: 22, height: 22)
             .offset(
-                x: size.width * model.pointerPosition.x - 11,
-                y: size.height * model.pointerPosition.y - 11
+                x: size.width * displayedPosition.x - 11,
+                y: size.height * displayedPosition.y - 11
             )
             .opacity(model.isConnected ? 1 : 0)
+            .animation(model.computerUse.showsAIControls && !reduceMotion ? .easeOut(duration: 0.16) : nil,
+                       value: displayedPosition)
             .allowsHitTesting(false)
     }
 }

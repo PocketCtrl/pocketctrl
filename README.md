@@ -4,7 +4,7 @@ PocketCtrl is a free, open-source, native remote desktop client for controlling 
 
 Created by Kylan O'Connor at [Iterative](https://tryiterative.com), which owns and maintains the official PocketCtrl project.
 
-The project is pre-release software. Screen, audio, control, and clipboard traffic are encrypted and authenticated with a per-device credential, but the protocol has not received a professional independent audit. Do not expose PocketCtrl's raw ports to the public internet; use a local network or Tailscale.
+The `main` branch may contain features not yet included in published releases. Screen, audio, control, and clipboard traffic are encrypted and authenticated with a per-device credential, but the protocol has not received a professional independent audit. Do not expose PocketCtrl's raw ports to the public internet; use a local network or Tailscale.
 
 ## Repository layout
 
@@ -39,12 +39,23 @@ open PocketCtrlNative/PocketCtrl.xcodeproj
 
 See [PocketCtrlNative/README.md](PocketCtrlNative/README.md) for app setup.
 
+## Optional Computer Use
+
+The development version includes supervised OpenAI Computer Use from the
+iPhone/iPad viewer's robot button: tap to type, or hold to speak and release to
+send an on-device transcription. It requires your own OpenAI API key on the host
+Mac and a separate Computer Use grant for the paired device. Choose GPT-6 Luna,
+Sol, or Astra and a supported thinking level before sending a task. This optional
+feature sends screen content and task instructions to OpenAI; ordinary remote
+desktop connections do not require it. See [setup and limitations](docs/computer-use.md).
+
 ## Distribution
 
 The full Mac app is distributed through the [PocketCtrl website](https://www.pocketctrl.com/download),
 separately from the iOS App Store release. See [Mac website release](docs/mac-website-release.md)
 for the Developer ID signing, provisioning, notarization, packaging, and release-testing workflow.
-The public download remains unavailable until a tested notarized build is published.
+Published downloads may differ from the development version described here. Use the
+release notes to check which features a downloaded build includes.
 
 ## Security
 

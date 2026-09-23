@@ -362,6 +362,7 @@ enum ClientControlPayloadType: String, Codable {
     case feedback
     case zoomRegion
     case audioSetting
+    case computerUse
 }
 
 struct ClientAuthenticatedControlEnvelope: Codable {
@@ -466,6 +467,33 @@ private extension String {
 
 @MainActor
 final class ClientModel: ObservableObject {
+    let computerUse = ClientComputerUseSession()
+    private var lastRenderedFrameAt = Date.distantPast
+    private func configureComputerUse() {
+        lastRenderedFrameAt = .distantPast
+        computerUse.send = { [weak self] fragment in self?.sender?.sendComputerUse(fragment) }
+        computerUse.canSupervise = { [weak self] in
+            guard let self else { return false }
+            return self.isConnected && self.isAppForeground && !self.isAutomaticReconnectInProgress
+                && Date().timeIntervalSince(self.lastRenderedFrameAt) < 3
+        }
+        computerUse.onChange = { [weak self] in
+            guard let self else { return }
+            if self.computerUse.showsAIControls {
+                self.textTypingQueue.removeAll(); self.textTypingTask?.cancel(); self.textTypingTask = nil
+                self.activeZoomRegion = nil; self.isRegionZoomActive = false
+                if let pointer = self.computerUse.snapshot?.pointer, pointer.isValid {
+                    // Host feedback only: do not echo an input event back to the Mac.
+                    self.pointerPublishWork?.cancel(); self.pointerPublishWork = nil
+                    self.latestPointerPosition = CGPoint(x: pointer.x, y: pointer.y)
+                    self.pointerPosition = self.latestPointerPosition
+                }
+            }
+            self.objectWillChange.send()
+        }
+        computerUse.activate(credentialID: credentialID)
+    }
+
     private static let routeLogger = Logger(subsystem: "PocketCtrlMobile", category: "Route")
     private static let videoLogger = Logger(subsystem: "PocketCtrlMobile", category: "Video")
     private static let connectionLogger = Logger(subsystem: "PocketCtrlMobile", category: "Connection")
@@ -711,7 +739,8 @@ final class ClientModel: ObservableObject {
     }
 
     var isInputReady: Bool {
-        isConnected && credentialAllowsInput && inputTargetStatus != "Input target not detected"
+        if computerUse.showsAIControls { return false }
+        return isConnected && credentialAllowsInput && inputTargetStatus != "Input target not detected"
     }
 
     var isWaitingForTailscaleVPN: Bool {
@@ -795,6 +824,7 @@ final class ClientModel: ObservableObject {
     }
 
     private func handleStreamSettingsChange(reason: String) {
+        guard !computerUse.blocksInput else { return }
         streamQualityProfile = streamSettings.matchingPreset
         streamSettings.save(to: .standard)
         // Sliders fire on every tick; send once the user settles so the Mac
@@ -892,6 +922,13 @@ final class ClientModel: ObservableObject {
                     self.latestVideoPixelBuffer = pixelBuffer
                     self.updateScrollRailLineBrightnessIfNeeded()
                     self.renderView?.display(pixelBuffer)
+                    if self.renderView != nil { self.lastRenderedFrameAt = Date() }
+                }
+            }
+            receiver.onComputerUse = { [weak self, weak receiver] fragment in
+                Task { @MainActor in
+                    guard let self, self.isCurrentVideoReceiver(receiver) else { return }
+                    self.computerUse.receive(fragment)
                 }
             }
             receiver.onFrameDecoded = { [weak self, weak receiver] in
@@ -951,6 +988,7 @@ final class ClientModel: ObservableObject {
             setRemoteAudioEnabled(audioEnabled)
             startAudioIfPossible()
             isConnected = true
+            configureComputerUse()
             connectionStartedAt = Date()
             lastDecodedFrameAt = nil
             didReceiveVideoInCurrentSession = false
@@ -1194,6 +1232,7 @@ final class ClientModel: ObservableObject {
     }
 
     func disconnect() {
+        computerUse.leaveViewer(disconnect: true)
         resetLocalWiFiAttempt()
         logConnectionEvent("disconnect() requested by UI/user")
         ClientDiagnostics.write("disconnect requested")
@@ -1265,6 +1304,7 @@ final class ClientModel: ObservableObject {
     }
 
     func pauseConnectionHealthChecks() {
+        computerUse.leaveViewer()
         guard isAppForeground else { return }
         isAppForeground = false
         appLeftForegroundAt = Date()
@@ -1558,7 +1598,7 @@ final class ClientModel: ObservableObject {
     }
 
     private func drainTextTypingQueue() async {
-        while !textTypingQueue.isEmpty {
+        while !textTypingQueue.isEmpty && !Task.isCancelled && !computerUse.showsAIControls {
             let stroke = textTypingQueue.removeFirst()
             sender?.send(.key(.keyDown, keyCode: stroke.keyCode, modifiers: stroke.modifiers))
             try? await Task.sleep(nanoseconds: 6_000_000)
@@ -1698,6 +1738,7 @@ final class ClientModel: ObservableObject {
     }
 
     func setRemoteAudioEnabled(_ enabled: Bool) {
+        guard !computerUse.blocksInput else { return }
         guard isConnected || sender != nil else { return }
         sender?.send(ClientAudioSetting(enabled: enabled))
         lastEvent = enabled ? "audio on" : "audio off"
@@ -1723,6 +1764,7 @@ final class ClientModel: ObservableObject {
     }
 
     private func sendCurrentStreamQualityPreference(reason: String) {
+        guard !computerUse.blocksInput else { return }
         advertisedStreamSettings = streamSettings
         guard sender != nil else { return }
         Self.videoLogger.info("Sending stream quality preference. profile=\(self.streamQualityProfile.rawValue, privacy: .public) detail=\(self.streamDetailAmount, privacy: .public) fps=\(self.streamSettings.maximumFrameRate, privacy: .public) reason=\(reason, privacy: .public)")
@@ -3423,6 +3465,12 @@ final class ClientInputSender {
         if socketFD >= 0 {
             close(socketFD)
             socketFD = -1
+        }
+    }
+
+    func sendComputerUse(_ fragment: ComputerUseFragment) {
+        queue.async { [weak self] in
+            self?.sendControlNow(fragment, type: .computerUse, label: "computerUse")
         }
     }
 

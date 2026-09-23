@@ -15,6 +15,10 @@ struct PocketCtrlSettingsView: View {
                 }
                 .tag(SettingsPane.general.rawValue)
 
+            ComputerUseSettingsView(model: model, coordinator: model.computerUse)
+                .tabItem { Label("Computer Use", systemImage: "desktopcomputer") }
+                .tag(SettingsPane.computerUse.rawValue)
+
             PocketCtrlCommandLineSettingsPane(controlToken: model.hostControlToken)
                 .tabItem {
                     Label("Command Line", systemImage: "terminal")
@@ -28,6 +32,7 @@ struct PocketCtrlSettingsView: View {
 
 private enum SettingsPane: String {
     case general
+    case computerUse
     case commandLine
 }
 

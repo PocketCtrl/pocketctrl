@@ -82,7 +82,7 @@ struct ClientContentView: View {
             let isPairingOrWaitingForApproval = model.isPairingRequestInProgress
             let isPreservingVideoDuringReconnect = model.hasDisplayedVideoFrame && (model.isConnectionAttemptInProgress || model.isAutomaticReconnectInProgress)
             let shouldShowRemoteCanvas = model.hasDisplayedVideoFrame && (model.isConnected || model.isConnectionAttemptInProgress || model.isAutomaticReconnectInProgress)
-            let shouldShowInteractiveControls = model.isConnected && !model.isConnectionAttemptInProgress && !model.isAutomaticReconnectInProgress
+            let shouldShowInteractiveControls = model.isConnected && !model.isConnectionAttemptInProgress && !model.isAutomaticReconnectInProgress && !model.computerUse.showsAIControls
 
             ZStack {
                 Color.black.ignoresSafeArea()
@@ -107,16 +107,28 @@ struct ClientContentView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.34), value: shouldShowRemoteCanvas)
-            .overlay(alignment: .topLeading) {
-                settingsButton(isLandscape: isLandscape)
-                    .padding(.leading, isLandscape ? 10 : 14)
-                    .padding(.top, isLandscape ? 8 : 10)
+            .overlay(alignment: .top) {
+                ViewerTopControlRow(session: model.computerUse, isCompact: isLandscape,
+                                    showsActivity: model.isConnected,
+                                    reservesHelp: !areOnScreenControlsHidden && !model.computerUse.showsAIControls,
+                                    availableHeight: proxy.size.height) {
+                    settingsButton(isLandscape: isLandscape)
+                } trailing: {
+                    if model.isConnected {
+                        HStack(spacing: 8) {
+                            if !areOnScreenControlsHidden, !model.computerUse.showsAIControls { viewerHelpButton(isLandscape: isLandscape) }
+                            ComputerUseViewerButton(session: model.computerUse, isCompact: isLandscape)
+                        }
+                    }
+                }
+                .padding(.horizontal, isLandscape ? 10 : 14)
+                .padding(.top, isLandscape ? 8 : 10)
             }
-            .overlay(alignment: .topTrailing) {
-                if shouldShowInteractiveControls, !areOnScreenControlsHidden {
-                    viewerHelpButton(isLandscape: isLandscape)
-                        .padding(.trailing, isLandscape ? 10 : 14)
-                        .padding(.top, isLandscape ? 8 : 10)
+            .overlay(alignment: .bottom) {
+                if model.isConnected, model.computerUse.showsAIControls {
+                    ComputerUseViewerControls(session: model.computerUse, isCompact: isLandscape)
+                        .padding(.horizontal, isLandscape ? 10 : 14)
+                        .padding(.bottom, isLandscape ? 12 : 86)
                 }
             }
             .overlay(alignment: .trailing) {
@@ -223,7 +235,7 @@ struct ClientContentView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if model.isConnected, !model.isAutomaticReconnectInProgress, isKeyboardBarVisible, !areOnScreenControlsHidden {
+            if model.isConnected, !model.isAutomaticReconnectInProgress, !model.computerUse.showsAIControls, isKeyboardBarVisible, !areOnScreenControlsHidden {
                 VStack(spacing: 0) {
                     if isShortcutComposerVisible {
                         RemoteShortcutComposer(
@@ -368,6 +380,13 @@ struct ClientContentView: View {
                 .presentationBackground {
                     SettingsBackground()
                 }
+            }
+        }
+        .onDisappear { model.computerUse.leaveViewer() }
+        .onChange(of: model.computerUse.showsAIControls) { _, blocked in
+            if blocked {
+                isKeyboardBarVisible = false; isShortcutComposerVisible = false
+                isShowingViewerHelp = false
             }
         }
         .statusBarHidden(true)
@@ -630,17 +649,12 @@ struct ClientContentView: View {
         Button {
             isShowingSettings = true
         } label: {
-            ZStack {
-                Circle()
-                    .fill(.black.opacity(0.52))
-                    .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
-                    .frame(width: isLandscape ? 44 : 52, height: isLandscape ? 44 : 52)
-
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: isLandscape ? 16 : 19, weight: .semibold))
-            }
-            .frame(width: isLandscape ? 60 : 64, height: isLandscape ? 60 : 64)
-            .contentShape(Rectangle())
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: isLandscape ? 16 : 19, weight: .semibold))
+                .frame(width: isLandscape ? 44 : 52, height: isLandscape ? 44 : 52)
+                .modifier(ViewerGlassSurface(shape: Circle(), interactive: true))
+                .frame(width: isLandscape ? 60 : 64, height: isLandscape ? 60 : 64)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)
@@ -688,8 +702,7 @@ struct ClientContentView: View {
             Image(systemName: "questionmark")
                 .font(.system(size: isLandscape ? 16 : 18, weight: .bold, design: .rounded))
                 .frame(width: isLandscape ? 38 : 42, height: isLandscape ? 38 : 42)
-                .background(.black.opacity(0.52), in: Circle())
-                .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+                .modifier(ViewerGlassSurface(shape: Circle(), interactive: true))
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)

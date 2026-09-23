@@ -79,6 +79,7 @@ struct ManualPairingClientError: LocalizedError {
 
 @MainActor
 final class RemoteDesktopModel: ObservableObject {
+    let computerUse = ComputerUseCoordinator()
     @Published var displays: [DisplayOption] = []
     @Published var selectedDisplayID: CGDirectDisplayID = CGMainDisplayID()
 
@@ -121,6 +122,7 @@ final class RemoteDesktopModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(remoteInputEnabled, forKey: Self.remoteInputEnabledKey)
             host?.setRemoteInputEnabled(remoteInputEnabled)
+            if !remoteInputEnabled { computerUse.stop(reason: "Remote input disabled") }
             hostInputStatus = remoteInputEnabled
                 ? (accessibilityGranted ? "Waiting for input" : "Accessibility required")
                 : "Remote input off"
@@ -652,6 +654,7 @@ final class RemoteDesktopModel: ObservableObject {
 
         do {
             let host = try ScreenCaptureHost(configuration: configuration)
+            host.configureComputerUse(computerUse)
             host.onStats = { [weak self] fps, bitrate, _, activity in
                 Task { @MainActor in
                     self?.hostFPS = fps
@@ -755,6 +758,7 @@ final class RemoteDesktopModel: ObservableObject {
                 }
             }
             self.host = host
+            computerUse.hostingStarted()
             isHosting = true
             refreshHostNetworkWarning()
             updateSleepActivity()
@@ -802,6 +806,7 @@ final class RemoteDesktopModel: ObservableObject {
     }
 
     private func stopHostRuntime(resetStatus: Bool, revokeSessionCredentials: Bool) {
+        computerUse.hostingStopped()
         NSLog("PocketCtrl model stopHost requested resetStatus=\(resetStatus)")
         host?.stop()
         endPairingMode()
@@ -1409,6 +1414,17 @@ final class RemoteDesktopModel: ObservableObject {
     }
 
     private func observeSetupPermissionRefreshEvents() {
+        NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.computerUse.shutdownImmediately() }
+            }
+            .store(in: &cancellables)
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.sessionDidResignActiveNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.computerUse.stop(reason: "Mac session locked or switched") }
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in
                 Task { @MainActor in
@@ -1777,7 +1793,8 @@ final class RemoteDesktopModel: ObservableObject {
             allowsRemoteInput: options.allowsRemoteInput,
             allowsClipboard: options.allowsClipboard,
             allowsAudio: options.allowsAudio,
-            accessMode: options.accessMode
+            accessMode: options.accessMode,
+            allowsComputerUse: options.allowsRemoteInput && options.allowsComputerUse
         )
         let credential = TrustedDeviceCredential(record: record, secret: PocketCtrlCredentialGenerator.secret())
         if options.accessMode == .unattended {
@@ -1857,7 +1874,38 @@ final class RemoteDesktopModel: ObservableObject {
         manualPairingApprovalCompletions.removeValue(forKey: request.id)?(.failure(reason))
     }
 
+    var computerUseDevices: [TrustedDeviceRecord] {
+        var records = trustedDevices
+        for viewer in connectedViewers where !records.contains(where: { $0.id == viewer.id }) {
+            if let record = trustedCredentialStore.credential(for: viewer.id)?.record { records.append(record) }
+        }
+        return records
+    }
+
+    func setComputerUsePermission(deviceID: String, allowed: Bool) async {
+        let context = LAContext()
+        do {
+            try await context.evaluatePolicy(.deviceOwnerAuthentication,
+                localizedReason: "Change this device’s access to Computer Use and AI provider API credits.")
+        } catch { computerUse.settingsMessage = "Device permission was not changed."; return }
+        guard var credential = trustedCredentialStore.credential(for: deviceID) else {
+            computerUse.settingsMessage = "This device is no longer connected or trusted."; return
+        }
+        guard !allowed || credential.record.allowsRemoteInput else {
+            computerUse.settingsMessage = "This device needs remote input permission. Pair it again with mouse and keyboard control enabled."; return
+        }
+        objectWillChange.send()
+        credential.record.allowsComputerUse = allowed
+        trustedCredentialStore.insert(credential)
+        if let i = trustedDevices.firstIndex(where: { $0.id == deviceID }) { trustedDevices[i] = credential.record }
+        if let i = storedTrustedDeviceRecords.firstIndex(where: { $0.id == deviceID }) { storedTrustedDeviceRecords[i] = credential.record }
+        saveTrustedDevices()
+        if !allowed { computerUse.deviceRevoked(deviceID) }
+        computerUse.settingsMessage = allowed ? "Computer Use permission granted." : "Computer Use permission revoked."
+    }
+
     func revokeTrustedDevice(_ device: TrustedDeviceRecord) {
+        computerUse.deviceRevoked(device.id)
         host?.disconnectViewer(deviceID: device.id)
         trustedCredentialStore.remove(deviceID: device.id)
         KeychainStore.delete(forKey: Self.trustedDeviceSecretPrefix + device.id)
@@ -1875,6 +1923,7 @@ final class RemoteDesktopModel: ObservableObject {
     }
 
     func disconnectViewer(deviceID: String, revoke: Bool) {
+        computerUse.deviceRevoked(deviceID)
         if revoke, let record = trustedDevices.first(where: { $0.id == deviceID }) {
             revokeTrustedDevice(record)
             return

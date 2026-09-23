@@ -17,14 +17,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 059AB32B2FCCC5C400F35232 /* PocketCtrl */;
 		};
-		7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -37,7 +37,7 @@
 		059AB32E2FCCC5C400F35232 /* PocketCtrl */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */,
 			);
 			path = PocketCtrl;
 			sourceTree = "<group>";
@@ -45,9 +45,14 @@
 		7B1C00022FCD010000000002 /* PocketCtrlMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */,
 			);
 			path = PocketCtrlMobile;
+			sourceTree = "<group>";
+		};
+		C0A100000000000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -74,6 +79,7 @@
 		059AB3232FCCC5C400F35232 = {
 			isa = PBXGroup;
 			children = (
+				C0A100000000000000000001 /* Shared */,
 				059AB32E2FCCC5C400F35232 /* PocketCtrl */,
 				7B1C00022FCD010000000002 /* PocketCtrlMobile */,
 				059AB32D2FCCC5C400F35232 /* Products */,
@@ -115,6 +121,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				059AB32E2FCCC5C400F35232 /* PocketCtrl */,
+				C0A100000000000000000001 /* Shared */,
 			);
 			name = PocketCtrl;
 			packageProductDependencies = (
@@ -138,6 +145,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				7B1C00022FCD010000000002 /* PocketCtrlMobile */,
+				C0A100000000000000000001 /* Shared */,
 			);
 			name = PocketCtrlMobile;
 			packageProductDependencies = (

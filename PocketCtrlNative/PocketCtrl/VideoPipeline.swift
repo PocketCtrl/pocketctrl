@@ -663,6 +663,9 @@ final class ScreenCaptureHost: NSObject, SCStreamOutput, SCStreamDelegate {
 
     private let configuration: HostConfiguration
     private let sender: SecureMultiPeerDatagramSender
+    private let computerUseSender: SecureMultiPeerDatagramSender
+    private weak var computerUse: ComputerUseCoordinator?
+    private var computerUseGate: ComputerUseExecutionGate?
     private let audioSender: SecureMultiPeerDatagramSender
     private let inputReceiver: any DatagramReceiving
     private let inputInjector: MacInputInjector
@@ -718,6 +721,7 @@ final class ScreenCaptureHost: NSObject, SCStreamOutput, SCStreamDelegate {
         let videoSender = try UDPMultiPeerSender()
         let systemAudioSender = try UDPMultiPeerSender()
         sender = SecureMultiPeerDatagramSender(sender: videoSender, channel: .video, port: configuration.videoPort, sessions: sessionRegistry)
+        computerUseSender = SecureMultiPeerDatagramSender(sender: videoSender, channel: .computerUse, port: configuration.videoPort, sessions: sessionRegistry)
         audioSender = SecureMultiPeerDatagramSender(sender: systemAudioSender, channel: .audio, port: configuration.audioPort, sessions: sessionRegistry)
         inputReceiver = try UDPReceiver(port: configuration.inputPort)
         inputInjector = MacInputInjector(displayIDProvider: { configuration.displayID })
@@ -739,6 +743,58 @@ final class ScreenCaptureHost: NSObject, SCStreamOutput, SCStreamDelegate {
             self?.onConnectedViewersChanged?(sessions)
             Task { @MainActor [weak self] in
                 await self?.reconcileAudioCaptureWithActiveSessions()
+            }
+        }
+    }
+
+    @MainActor
+    func configureComputerUse(_ coordinator: ComputerUseCoordinator) {
+        computerUse = coordinator
+        computerUseGate = coordinator.gate
+        inputInjector.computerUseGate = coordinator.gate
+        let desktop = ComputerUseDesktop(displayID: configuration.displayID, injector: inputInjector, gate: coordinator.gate)
+        desktop.onPointerMoved = { [weak coordinator] pointer, token, flush in
+            coordinator?.updatePointer(pointer, token: token, flush: flush)
+        }
+        coordinator.readPointer = { desktop.currentPointer() }
+        coordinator.observe = { [weak self] in
+            guard let self, !self.isStopping else { throw ComputerUseFailure("Hosting stopped.") }
+            if self.activeZoomRegion != nil {
+                await self.handle(zoomRegion: ViewerZoomRegion(enabled: false, x: 0, y: 0, width: 1, height: 1))
+            }
+            return try await desktop.capture()
+        }
+        coordinator.execute = { action, observation, token in try await desktop.execute(action, observation: observation, token: token) }
+        coordinator.releaseInputs = { [inputInjector] in await inputInjector.emergencyReleaseInputs() }
+        coordinator.releaseInputsBeforeExit = { [inputInjector] in inputInjector.emergencyReleaseInputsBeforeExit() }
+        coordinator.permissionError = { [weak self] deviceID in
+            guard let self, !self.isStopping else { return "Hosting stopped." }
+            guard self.currentRemoteInputEnabled else { return "Enable remote input on the Mac." }
+            guard let credential = self.configuration.credentialStore.credential(for: deviceID),
+                  credential.record.allowsRemoteInput, credential.record.allowsComputerUse else {
+                return "Grant this device Computer Use and remote input in Mac settings."
+            }
+            guard MacPermissions.accessibilityGranted, MacPermissions.screenRecordingGranted else { return "Grant Screen Recording and Accessibility permissions on the Mac." }
+            guard CGDisplayIsActive(self.configuration.displayID) != 0 else { return "The selected display is unavailable." }
+            return nil
+        }
+        coordinator.canStop = { [weak self] deviceID in
+            self?.configuration.credentialStore.credential(for: deviceID)?.record.allowsRemoteInput == true
+        }
+        coordinator.reserveControl = { [weak self] deviceID in
+            guard let self, let credential = self.configuration.credentialStore.credential(for: deviceID) else { return false }
+            return self.inputListener?.reserveComputerUse(credential) == true
+        }
+        coordinator.sendSnapshot = { [weak self, weak coordinator] snapshot, target in
+            guard let self, let coordinator, !self.isStopping else { return }
+            for session in self.sessionRegistry.activeSessions() where target == nil || target == session.credential.record.id {
+                let id = session.credential.record.id
+                guard coordinator.isSubscriber(id) else { continue }
+                let value = target == nil ? coordinator.snapshotForDevice(id) : snapshot
+                for fragment in ComputerUseFragment.encode(value) {
+                    guard let data = try? JSONEncoder().encode(fragment) else { continue }
+                    try? self.computerUseSender.send(data, allowing: { $0.record.id == id })
+                }
             }
         }
     }
@@ -777,6 +833,10 @@ final class ScreenCaptureHost: NSObject, SCStreamOutput, SCStreamDelegate {
             self?.onAuthenticatedDevice?(credential, sourceHost)
         } onActiveControllerChanged: { [weak self] credential, sourceHost in
             self?.onActiveControllerChanged?(credential, sourceHost)
+        }
+        inputListener?.computerUseGate = computerUseGate
+        inputListener?.onComputerUse = { [weak self] fragment, credential in
+            Task { @MainActor [weak self] in self?.computerUse?.receive(fragment, deviceID: credential.record.id) }
         }
         inputListener?.setInputEnabled(currentRemoteInputEnabled)
         inputListener?.start()

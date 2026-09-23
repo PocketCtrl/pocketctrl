@@ -55,5 +55,31 @@ func runSpeechTests() async throws {
     check(speech.isRecording, "recording can start again after engine failure")
     speech.interrupt()
     check(!speech.isRecording, "background/disconnect interruption stops recording")
+    speech.start()
+    await settle()
+    let callback = SFSpeechRecognizer.callbacks.last!
+    callback(SpeechResult(bestTranscription: .init(formattedString: "open"), isFinal: false), nil)
+    await settle()
+    let finish = Task { await speech.finish() }
+    await settle()
+    check(speech.isFinishing, "release waits for trailing recognition results")
+    callback(SpeechResult(bestTranscription: .init(formattedString: "open Safari"), isFinal: true), nil)
+    let result = await finish.value
+    check(result == "open Safari" && !speech.isRecording && !speech.isFinishing,
+          "release captures final words and releases the microphone exactly once")
+    speech.start()
+    await settle()
+    let cancelled = Task { await speech.finish() }
+    await settle()
+    speech.interrupt()
+    let cancelledResult = await cancelled.value
+    check(cancelledResult == nil, "cancelled hold cannot submit stale speech")
+    AVAudioApplication.deferResponse = true
+    speech.start()
+    await settle()
+    let early = await speech.finish()
+    AVAudioApplication.pendingResponse?(true)
+    await settle()
+    check(early == nil && !speech.isRecording, "release during permission prompt never starts recording later")
 }
 try await runSpeechTests()

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-PocketCtrl is pre-release software. Security fixes are made on the latest `main` branch only.
+Security fixes are made on the latest `main` branch only.
 
 ## Reporting a vulnerability
 
@@ -22,4 +22,20 @@ Please allow a reasonable amount of time for triage and a coordinated fix before
 - The optional host-control API binds to `127.0.0.1` and uses a separate random bearer token stored in the Mac Keychain. Installing the optional CLI also writes a copy to `~/Library/Application Support/PocketCtrl/cli-control-token`, with directory permissions 0700 and file permissions 0600. Processes running as your user can read this copy. Never publish it or expose the API to a network.
 - Release builds store persistent credentials in the non-synchronizing, device-only, when-unlocked Keychain. Locking the device does not revoke credentials already loaded in memory. Mac Debug builds can use the login Keychain when data-protection entitlements are unavailable.
 
-This is pre-release remote-control software and has not received a professional independent security audit. Use Tailscale rather than exposing raw PocketCtrl ports to the public internet.
+## Optional Computer Use
+
+Computer Use is disabled by default and requires a separate per-device grant
+in addition to remote-input permission. Existing paired devices do not receive
+this grant automatically.
+
+When enabled, task instructions, screenshots, and limited focused-control context
+are sent to OpenAI using an API key stored in the host Mac's Keychain. On-device
+speech transcription can supply instructions; speech audio is not sent to OpenAI.
+See [Computer Use privacy notes](docs/privacy-policy.md).
+
+The feature requires a supervising viewer and pauses when supervision is lost.
+Approvals, screen validation, and Stop reduce risk but are not a security boundary
+against every model mistake or prompt-injection attack. Keep sensitive content
+closed and supervise every task.
+
+PocketCtrl has not received a professional independent security audit. Use Tailscale rather than exposing raw PocketCtrl ports to the public internet.

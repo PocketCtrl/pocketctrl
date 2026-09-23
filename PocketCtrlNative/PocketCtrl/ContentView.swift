@@ -19,6 +19,7 @@ struct ContentView: View {
 
             VStack(spacing: 0) {
                 topBar
+                ComputerUseHostStatus(coordinator: model.computerUse)
 
                 ZStack(alignment: .trailing) {
                     ViewerWorkspaceView(model: model)
@@ -604,6 +605,7 @@ struct HostMenuBarView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     actionSection
+                    ComputerUseHostStatus(coordinator: model.computerUse)
                     if setupComplete {
                         pairingSection
                     } else {
@@ -3510,6 +3512,7 @@ struct ManualPairingApprovalSheet: View {
     @State private var allowRemoteInput = false
     @State private var allowClipboard = false
     @State private var allowAudio = false
+    @State private var allowComputerUse = false
     @State private var allowUnattendedAccess = false
 
     var body: some View {
@@ -3554,6 +3557,8 @@ struct ManualPairingApprovalSheet: View {
                 Toggle("Allow mouse and keyboard control", isOn: $allowRemoteInput)
                 Toggle("Allow clipboard access", isOn: $allowClipboard)
                 Toggle("Allow Mac audio", isOn: $allowAudio)
+                Toggle("Allow Computer Use (uses this Mac’s API credits)", isOn: $allowComputerUse)
+                    .disabled(!allowRemoteInput)
                 Toggle("Allow future unattended access", isOn: $allowUnattendedAccess)
             }
             .toggleStyle(.switch)
@@ -3579,7 +3584,8 @@ struct ManualPairingApprovalSheet: View {
                         accessMode: allowUnattendedAccess ? .unattended : .sessionOnly,
                         allowsRemoteInput: allowRemoteInput,
                         allowsClipboard: allowClipboard,
-                        allowsAudio: allowAudio
+                        allowsAudio: allowAudio,
+                        allowsComputerUse: allowRemoteInput && allowComputerUse
                     ))
                 } label: {
                     Label("Authenticate and Approve", systemImage: "touchid")

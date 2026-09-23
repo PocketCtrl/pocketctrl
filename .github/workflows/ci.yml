@@ -25,6 +25,10 @@ jobs:
         run: zsh script/test_speech_input.sh
       - name: Test Mac pointer mapping
         run: zsh script/test_mac_pointer.sh
+      - name: Test Computer Use protocol and stop guarantees
+        run: zsh script/test_computer_use.sh
+      - name: Test Mac transport diagnostics
+        run: zsh script/test_mac_transport_diagnostics.sh
       - name: Test Mac release metadata checks
         run: bash script/test_mac_release.sh
       - name: Build control utility

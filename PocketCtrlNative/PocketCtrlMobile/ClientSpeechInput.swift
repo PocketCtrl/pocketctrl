@@ -22,9 +22,13 @@ final class ClientSpeechInput: ObservableObject {
     private var attemptID: UUID?
     private var recordingID: UUID?
     private var hasInputTap = false
+    @Published private(set) var isFinishing = false
+    private var finishContinuation: CheckedContinuation<String?, Never>?
+    private var finishTimeout: Task<Void, Never>?
 
     func start() {
-        guard !isRecording, !isStarting else { return }
+        guard !isRecording, !isStarting, !isFinishing else { return }
+        transcript = ""; alertMessage = nil; shouldOfferSettings = false
         guard let recognizer, recognizer.supportsOnDeviceRecognition else {
             showError("On-device dictation isn’t available for this device or language. You can still use the keyboard. PocketCtrl never falls back to sending speech audio to a server.")
             return
@@ -60,6 +64,10 @@ final class ClientSpeechInput: ObservableObject {
 
     @discardableResult
     func stop() -> String {
+        finishTimeout?.cancel(); finishTimeout = nil
+        let finishing = finishContinuation; finishContinuation = nil
+        isFinishing = false
+        finishing?.resume(returning: nil)
         attemptID = nil
         pendingStart?.cancel()
         pendingStart = nil
@@ -84,9 +92,33 @@ final class ClientSpeechInput: ObservableObject {
         return transcript
     }
 
+    /// End microphone input immediately, but allow the recognizer to deliver the
+    /// final words. A bounded fallback uses its latest partial, never a prior hold.
+    func finish() async -> String? {
+        guard !isStarting, !isFinishing else { stop(); return nil }
+        guard isRecording else { return alertMessage == nil ? transcript : nil }
+        return await withCheckedContinuation { continuation in
+            finishContinuation = continuation; isFinishing = true
+            audioEngine.stop()
+            if hasInputTap { audioEngine.inputNode.removeTap(onBus: 0); hasInputTap = false }
+            request?.endAudio()
+            finishTimeout = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                guard !Task.isCancelled else { return }
+                self?.completeFinish()
+            }
+        }
+    }
+    private func completeFinish() {
+        let completion = finishContinuation; finishContinuation = nil
+        let text = transcript
+        stop()
+        completion?.resume(returning: text)
+    }
+
     func interrupt(recordingOwner: UUID? = nil) {
         if let recordingOwner, recordingOwner != recordingID { return }
-        guard isStarting || isRecording else { return }
+        guard isStarting || isRecording || isFinishing else { return }
         stop()
         status = "Voice input stopped because the audio route or app state changed."
     }
@@ -146,7 +178,7 @@ final class ClientSpeechInput: ObservableObject {
                     self.stop()
                     self.showError("Voice input stopped: \(error.localizedDescription)")
                 } else if result?.isFinal == true {
-                    self.stop()
+                    if self.isFinishing { self.completeFinish() } else { self.stop() }
                 }
             }
         }

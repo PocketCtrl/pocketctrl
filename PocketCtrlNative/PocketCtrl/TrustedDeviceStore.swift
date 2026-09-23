@@ -13,6 +13,7 @@ struct PairingApprovalOptions: Equatable {
     var allowsRemoteInput = false
     var allowsClipboard = false
     var allowsAudio = false
+    var allowsComputerUse = false
 }
 
 struct TrustedDeviceRecord: Identifiable, Codable, Equatable {
@@ -24,6 +25,28 @@ struct TrustedDeviceRecord: Identifiable, Codable, Equatable {
     var allowsClipboard: Bool
     var allowsAudio: Bool
     let accessMode: TrustedDeviceAccessMode
+    var allowsComputerUse = false
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, createdAt, lastConnectedAt, allowsRemoteInput, allowsClipboard, allowsAudio, accessMode, allowsComputerUse
+    }
+    init(id: String, name: String, createdAt: Date, lastConnectedAt: Date?, allowsRemoteInput: Bool,
+         allowsClipboard: Bool, allowsAudio: Bool, accessMode: TrustedDeviceAccessMode, allowsComputerUse: Bool = false) {
+        self.id = id; self.name = name; self.createdAt = createdAt; self.lastConnectedAt = lastConnectedAt
+        self.allowsRemoteInput = allowsRemoteInput; self.allowsClipboard = allowsClipboard
+        self.allowsAudio = allowsAudio; self.accessMode = accessMode; self.allowsComputerUse = allowsComputerUse
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id); name = try c.decode(String.self, forKey: .name)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        lastConnectedAt = try c.decodeIfPresent(Date.self, forKey: .lastConnectedAt)
+        allowsRemoteInput = try c.decode(Bool.self, forKey: .allowsRemoteInput)
+        allowsClipboard = try c.decode(Bool.self, forKey: .allowsClipboard)
+        allowsAudio = try c.decode(Bool.self, forKey: .allowsAudio)
+        accessMode = try c.decode(TrustedDeviceAccessMode.self, forKey: .accessMode)
+        allowsComputerUse = try c.decodeIfPresent(Bool.self, forKey: .allowsComputerUse) ?? false
+    }
 }
 
 struct TrustedDeviceCredential: Equatable {

@@ -30,10 +30,17 @@ zsh script/test_network_endpoints.sh
 zsh script/test_audio_session.sh
 zsh script/test_speech_input.sh
 zsh script/test_mac_pointer.sh
+zsh script/test_computer_use.sh
+zsh script/test_mac_transport_diagnostics.sh
 bash script/test_mac_release.sh
 ```
 
 The test scripts expect a full Xcode installation and default to `/Applications/Xcode.app`; set `DEVELOPER_DIR` if yours is elsewhere.
+
+Computer Use tests use mock providers, an in-memory Keychain substitute, and recorded
+input events. They do not require API keys, incur API charges, or control your desktop.
+See [Computer Use](docs/computer-use.md) for setup, privacy considerations, and the
+separate supervised runtime checks needed before distributing a build.
 
 For native app changes, also build the affected Xcode schemes with code signing disabled or run them on an appropriate simulator/device.
 

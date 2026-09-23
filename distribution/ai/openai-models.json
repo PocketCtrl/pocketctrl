@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "revision": 2,
+  "verifiedAt": "2026-09-22",
+  "models": [
+    {
+      "id": "gpt-6-sol",
+      "enabled": true,
+      "efforts": [
+        "automatic",
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "rates": {
+        "input": 2,
+        "cachedInput": 0.2,
+        "cacheWrite": 2.5,
+        "output": 10,
+        "longContextThreshold": 272000,
+        "longInputMultiplier": 2,
+        "longOutputMultiplier": 1.5
+      }
+    },
+    {
+      "id": "gpt-6-astra",
+      "enabled": true,
+      "efforts": [
+        "automatic",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "rates": {
+        "input": 10,
+        "cachedInput": 1,
+        "cacheWrite": 12.5,
+        "output": 50,
+        "longContextThreshold": 272000,
+        "longInputMultiplier": 2,
+        "longOutputMultiplier": 1.5
+      }
+    },
+    {
+      "id": "gpt-6-luna",
+      "enabled": true,
+      "efforts": [
+        "automatic",
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "rates": {
+        "input": 0.1,
+        "cachedInput": 0.01,
+        "cacheWrite": 0.125,
+        "output": 0.5,
+        "longContextThreshold": 272000,
+        "longInputMultiplier": 2,
+        "longOutputMultiplier": 1.5
+      }
+    }
+  ]
+}

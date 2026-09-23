@@ -388,6 +388,7 @@ final class ClientH264Decoder {
 }
 
 final class ClientVideoReceiver {
+    var onComputerUse: ((ComputerUseFragment) -> Void)?
     private static let logger = Logger(subsystem: "PocketCtrlMobile", category: "VideoReceiver")
 
     var renderer: ((CVPixelBuffer) -> Void)?
@@ -462,6 +463,16 @@ final class ClientVideoReceiver {
                 }
                 if self.rawDatagramCounter <= 10 || self.rawDatagramCounter % 100 == 0 {
                     ClientDiagnostics.write("video receiver raw datagram count=\(self.rawDatagramCounter) bytes=\(datagram.data.count) hasSender=\(datagram.senderAddress != nil)")
+                }
+                // AI events share the port, but have their own authenticated channel key.
+                if datagram.data.count > 5, datagram.data[5] == ClientSecureSessionChannel.computerUse.rawValue {
+                    if let plaintext = ClientSecureSessionDatagram.open(datagram.data, channel: .computerUse,
+                        credentialID: self.credentialID, secret: self.credentialSecret),
+                       self.shouldAcceptAuthenticatedVideoDatagram(from: datagram.senderAddress),
+                       let fragment = try? JSONDecoder().decode(ComputerUseFragment.self, from: plaintext) {
+                        self.onComputerUse?(fragment)
+                    }
+                    continue
                 }
                 guard let plaintext = ClientSecureSessionDatagram.open(
                     datagram.data,
