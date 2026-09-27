@@ -17,14 +17,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */ = {
+		7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 059AB32B2FCCC5C400F35232 /* PocketCtrl */;
 		};
-		7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */ = {
+		7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -37,7 +37,7 @@
 		059AB32E2FCCC5C400F35232 /* PocketCtrl */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01002FCD100000000100 /* Exceptions for "PocketCtrl" folder in "PocketCtrl" target */,
+				7B1C01002FCD100000000100 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = PocketCtrl;
 			sourceTree = "<group>";
@@ -45,7 +45,7 @@
 		7B1C00022FCD010000000002 /* PocketCtrlMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7B1C01012FCD100000000101 /* Exceptions for "PocketCtrlMobile" folder in "PocketCtrlMobile" target */,
+				7B1C01012FCD100000000101 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = PocketCtrlMobile;
 			sourceTree = "<group>";
@@ -355,7 +355,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -369,7 +369,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -388,7 +388,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -402,7 +402,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -432,7 +432,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mobile;
 				PRODUCT_MODULE_NAME = PocketCtrlMobile;
 				PRODUCT_NAME = PocketCtrl;
@@ -468,7 +468,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pocketctrl.mobile;
 				PRODUCT_MODULE_NAME = PocketCtrlMobile;
 				PRODUCT_NAME = PocketCtrl;
